@@ -1211,7 +1211,7 @@ function viewInscriptions(){
   var M=S.meta,out='';
   if(S.demo) out+='<div class="notice"><b>Données d\'exemple.</b></div>';
   out+='<section class="card"><div class="row" style="justify-content:space-between;align-items:center"><div><h2>Inscriptions</h2></div>'+
-   '<div style="flex:none;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" data-act="sort-pairs">Trier par poids</button><button class="btn primary" data-act="add-pair">Ajouter une paire</button></div></div>';
+   '<div style="flex:none;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" data-act="sort-pairs">Trier par poids</button><button class="btn" data-act="export-pairs">Export Excel des paires</button><button class="btn primary" data-act="add-pair">Ajouter une paire</button></div></div>';
   var noRank=S.pairs.filter(function(p){return isActive(p)&&(!num(p.a.classement)||!num(p.b.classement))}).length;
   if(noRank) out+='<div class="notice warn" style="margin-top:12px">'+noRank+' paire'+(noRank>1?'s ont':' a')+' un classement manquant : le poids de paire est faussé.</div>';
   out+='<div class="scroll" style="margin-top:12px"><table><thead><tr><th></th><th>Rang</th><th>Nom</th><th>Prénom</th><th>Naissance</th><th>Licence</th><th>Club</th><th>Classement</th><th>Courriel</th><th>Portable</th><th>Poids</th><th></th></tr></thead><tbody>';
@@ -1711,6 +1711,17 @@ function exportXlsx(){
   var out=XLSX.write(wb,{type:'array',bookType:'xlsx'});
   saveFile(fname('xlsx'),new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
 }
+function exportPairs(){
+  if(!window.XLSX){setStatus('La bibliothèque Excel n\'a pas pu se charger.');return}
+  var rows=[['N°','Joueur 1 – Nom','Joueur 1 – Prénom','Joueur 1 – Licence','Joueur 1 – Classement','Joueur 1 – Club','Joueur 1 – Courriel','Joueur 1 – Portable','Joueur 2 – Nom','Joueur 2 – Prénom','Joueur 2 – Licence','Joueur 2 – Classement','Joueur 2 – Club','Joueur 2 – Courriel','Joueur 2 – Portable','Poids de paire']];
+  var list=S.pairs.filter(isActive);
+  list.sort(function(a,b){var x=R.by&&R.by[a.id],y=R.by&&R.by[b.id];return x&&y?x.seed-y.seed:weight(a)-weight(b)});
+  list.forEach(function(p,i){var a=p.a,b=p.b;rows.push([R.by&&R.by[p.id]?R.by[p.id].seed:i+1,a.nom,a.prenom,a.licence,num(a.classement)||'',a.club,a.email,a.tel,b.nom,b.prenom,b.licence,num(b.classement)||'',b.club,b.email,b.tel,weight(p)])});
+  var ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=rows[0].map(function(h,i){return {wch:i===0?5:(/Courriel/.test(h)?28:(/Club/.test(h)?22:14))}});
+  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Paires');
+  var out=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+  saveFile(fname('xlsx').replace(/\.xlsx$/,'_paires.xlsx'),new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+}
 function exportJson(){saveFile(fname('json'),new Blob([JSON.stringify(S)],{type:'application/json'}))}
 
 function setScore(id,side,v){
@@ -1804,6 +1815,7 @@ document.addEventListener('click',function(e){
   else if(a==='import-text'){var tx=document.getElementById('imptext').value;
     if(tx.trim()){applyImport(parseRows(splitText(tx)))}else importMsg='Colle d\'abord des lignes.';change()}
   else if(a==='export-xlsx')exportXlsx();
+  else if(a==='export-pairs')exportPairs();
   else if(a==='export-json')exportJson();
 });
 function endDraw(){clearTimeout(drawTimer);stopTick();var ovx=document.getElementById('drawcard');if(ovx)ovx.remove();drawAnim=null;S.bracketDrawn=true;S.drawKey=R.drawKey;save();render()}
