@@ -174,6 +174,18 @@ async function handle(req, store, pw) {
       }
       return json({ error: 'not_found' }, 404);
     }
+    /* attribuer un tournoi à un juge (ou le reprendre) : administrateur seulement */
+    if (req.method === 'POST' && parts[0] === 'owner' && /^[\w-]{1,80}$/.test(parts[1] || '')) {
+      if (!(await isAdmin(req, store, pw))) return json({ error: 'unauthorized' }, 401);
+      const b = await req.json().catch(() => ({}));
+      const owner = String(b.owner || '');
+      if (owner !== 'admin' && !(LOGIN_RE.test(owner) && await store.get('users/' + owner))) return json({ error: 'unknown_user' }, 400);
+      for (const t of TABLES) {
+        const r = await store.get(t + '/' + parts[1]);
+        if (r) await store.setJSON(t + '/' + parts[1], { ...r, owner });
+      }
+      return json({ ok: true });
+    }
     if (req.method === 'GET' && parts[0] === 'list' && TABLES.includes(parts[1])) {
       const rows = await store.listJSON(parts[1] + '/');
       if (parts[1] === 'tournaments') {

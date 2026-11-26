@@ -47,6 +47,18 @@
   }};
   if(!online)return;
 
+  /* attribuer un tournoi à un juge (administrateur) */
+  window.padelAssign=function(tid){
+    api('users').then(function(us){
+      var bg=document.createElement('div');bg.id='adm-bg';
+      function esc(t){return String(t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+      var opts='<option value="admin">Administrateur (moi)</option>'+us.map(function(u){return '<option value="'+esc(u.login)+'">'+esc(u.name)+' ('+esc(u.login)+')</option>'}).join('');
+      bg.innerHTML='<div id="adm-box"><b>Attribuer ce tournoi à</b><select id="as-o" style="padding:8px;border:1px solid #ccc;border-radius:6px">'+opts+'</select><small style="color:#777">Le juge choisi pourra le modifier et le supprimer. Les autres le verront en lecture seule.</small><div id="adm-err"></div><button id="as-s" type="button">Attribuer</button><button type="button" id="adm-x" style="background:#999">Annuler</button></div>';
+      document.body.appendChild(bg);
+      bg.querySelector('#adm-x').onclick=function(){bg.remove()};
+      bg.querySelector('#as-s').onclick=function(){api('owner/'+tid,{method:'POST',body:{owner:bg.querySelector('#as-o').value}}).then(function(){location.reload()},function(){bg.querySelector('#adm-err').textContent='Erreur, réessaie.'})};
+    });
+  };
   function openJudges(){
     var bg=document.createElement('div');bg.id='adm-bg';
     bg.innerHTML='<div id="adm-box" style="width:min(460px,94vw);max-height:90vh;overflow:auto"><b>Juges-arbitres</b><div id="jl" style="display:grid;gap:6px"></div><hr style="width:100%;border:0;border-top:1px solid #ddd"><b style="font-size:13px">Ajouter ou modifier un juge</b><input id="jn" placeholder="Nom affiché (ex : Marc Dupont)" maxlength="40"><input id="ji" placeholder="Identifiant (minuscules, sans espace)" maxlength="24" autocapitalize="none"><input id="jp" placeholder="Mot de passe (6 caractères minimum)"><div id="adm-err"></div><button id="js" type="button">Enregistrer</button><button type="button" id="adm-x" style="background:#999">Fermer</button></div>';
