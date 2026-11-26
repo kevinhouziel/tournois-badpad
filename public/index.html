@@ -1427,7 +1427,8 @@ function prFake(){
 }
 function prOn(){return !!(cur&&(window.padelApi||role==='edit'))}
 function prDev(){try{var d=localStorage.getItem('padel-dev');if(!d){d='';for(var i=0;i<24;i++)d+='abcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random()*36));localStorage.setItem('padel-dev',d)}return d}catch(e){return PR._d||(PR._d=Math.random().toString(36).slice(2,14).padEnd(10,'x'))}}
-function prName(){try{return localStorage.getItem('padel-pseudo')||''}catch(e){return PR._n||''}}
+function prName(){var n='';try{n=localStorage.getItem('padel-pseudo')||''}catch(e){n=PR._n||''}
+  if(!n){n='Invité '+(1000+Math.floor(Math.random()*9000));prSetName(n)}return n}
 function prSetName(n){PR._n=n;try{localStorage.setItem('padel-pseudo',n)}catch(e){}}
 function prLoad(){
   if(!prOn())return;
