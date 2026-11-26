@@ -1,6 +1,10 @@
 {
   "name": "tournois-badpad",
   "main": "worker.js",
+  "routes": [
+    { "pattern": "tournois-badpad.fr", "custom_domain": true },
+    { "pattern": "pro.tournois-badpad.fr", "custom_domain": true }
+  ],
   "compatibility_date": "2025-11-01",
   "assets": {
     "directory": "./public",
