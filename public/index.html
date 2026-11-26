@@ -130,6 +130,7 @@ tr.pairsep td{border-top:2px solid var(--ink2)}
 .pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600;background:var(--court-soft);color:var(--court)}
 .pill.ok{background:var(--win);color:var(--good)}
 .stand td,.stand th{padding:3px 6px}
+.prv{display:grid;gap:20px}.wide .prv{gap:12px}.prv section.card{max-width:700px}.prv section.card:first-of-type+section.card table{table-layout:auto}.prv th.num,.prv td.num{text-align:center!important}.prv td,.prv th{padding-left:6px;padding-right:6px}
 .stand th.num,.stand td.num,.pc .stand th.num,.pc .stand td.num{text-align:center!important}
 .podium td.pl{font:700 22px var(--f-head);width:48px}
 .podium td,.podium th{white-space:nowrap}
@@ -1483,7 +1484,8 @@ function prVotes(m){
   var na=0,nb=0;PR.rows.forEach(function(r){var p=r.picks&&r.picks[m.id];if(prValid(p,m)){if(p.w==='a')na++;else nb++}});
   return {na:na,nb:nb,n:na+nb};
 }
-function viewPronos(){
+function viewPronos(){return '<div class="prv">'+viewPronos0()+'</div>'}
+function viewPronos0(){
   if(!R.ok)return needOk();
   var name=prName(),me=PR.picks||{},NG=(R.pool||[]).length,sub=PR.sub;
   var subs=[];(R.pool||[]).forEach(function(P,i){subs.push(['g'+(i+1),'Poule '+(i+1)])});
