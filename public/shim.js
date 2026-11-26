@@ -2,11 +2,13 @@
 (function(){
   var online=location.protocol!=='file:';
   var TK='padel-admin-token',WK='padel-who';
+  /* adresse publique (spectateurs) : aucune connexion, aucun outil d'administration. L'espace pro est sur pro.tournois-badpad.fr */
+  var PUB=/^(www\.)?tournois-badpad\.fr$/i.test(location.hostname);
   /* qui est connecté (juge ou administrateur) : lu tout de suite, vérifié ensuite auprès du serveur */
   (function(){try{var w=JSON.parse(localStorage.getItem(WK)||'null');var t=localStorage.getItem(TK)||'';
-    if(t){window.padelWho=(w&&w.login)?w:{role:t.indexOf('.')>0?'judge':'admin',login:t.indexOf('.')>0?'':'admin',name:'Administrateur'}}}catch(e){}})();
+    if(t&&!PUB){window.padelWho=(w&&w.login)?w:{role:t.indexOf('.')>0?'judge':'admin',login:t.indexOf('.')>0?'':'admin',name:'Administrateur'}}}catch(e){}})();
   function wipeLocal(){try{Object.keys(localStorage).forEach(function(k){if(k.indexOf('tableaux-padel')===0)localStorage.removeItem(k)})}catch(e){}}
-  function token(){try{return localStorage.getItem(TK)||''}catch(e){return ''}}
+  function token(){if(PUB)return '';try{return localStorage.getItem(TK)||''}catch(e){return ''}}
   function api(path,opt){
     opt=opt||{};var h={'content-type':'application/json'};var t=token();if(t)h.Authorization='Bearer '+t;
     return fetch('/api/'+path,{method:opt.method||'GET',headers:h,body:opt.body?JSON.stringify(opt.body):undefined,cache:'no-store'})
@@ -69,6 +71,7 @@
   }
 
   document.addEventListener('DOMContentLoaded',function(){
+    if(PUB)return;
     var st=document.createElement('style');
     st.textContent='#adm-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px 0}.adm-l{font:600 13px system-ui;color:#9b1d36;background:#fff;border:1px solid #9b1d36;border-radius:6px;padding:5px 10px;cursor:pointer}.adm-l:hover{background:#9b1d36;color:#fff}'+
     '#adm-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:flex;align-items:center;justify-content:center}#adm-box{background:#fff;border-radius:10px;padding:18px;width:min(320px,90vw);font:14px system-ui;display:grid;gap:10px}#adm-box input{padding:8px;border:1px solid #ccc;border-radius:6px;font:inherit}#adm-box button{padding:8px;border-radius:6px;border:0;background:#9b1d36;color:#fff;font:inherit;cursor:pointer}#adm-err{color:#b00;font-size:12px;min-height:1em}';

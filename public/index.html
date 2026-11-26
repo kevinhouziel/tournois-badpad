@@ -462,7 +462,7 @@ var QR=(function(){
 })();
 
 function siteUrl(){
-  if(window.padelApi){var u=location.origin+location.pathname;return /^https?:\/\//.test(u)?u:''}
+  if(window.padelApi){var u=location.origin.replace(/\/\/pro\./i,'//')+location.pathname;return /^https?:\/\//.test(u)?u:''}
   var d='';try{d=localStorage.getItem('padel-qr-url')||''}catch(e){}
   return /^https?:\/\//.test(d)?d:'';
 }
