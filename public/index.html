@@ -529,7 +529,9 @@ var DEFAULT_JSON="{\"meta\":{\"name\":\"P25 du 14/11/2026\",\"date\":\"2026-11-1
 var IDX='tableaux-padel-index',TK='tableaux-padel-t-',index={list:[]},cur=null,home=true,confirmDel=null,homeTab='avenir';
 function saveIndex(){try{localStorage.setItem(IDX,JSON.stringify(index))}catch(e){}}
 function entryOf(id,st){var M=st.meta||{};return {id:id,name:(M.level||'')+' '+(M.gender||'')+(M.date?' du '+fmtDate(M.date):''),date:M.date||'',n:(st.pairs||[]).filter(function(p){return p&&((p.a&&p.a.nom)||(p.b&&p.b.nom))}).length,teams:M.teams||0,drawn:!!st.bracketDrawn,up:Date.now()}}
-function putT(id,st,up){var e=entryOf(id,st),k=-1;if(up)e.up=up;index.list.forEach(function(x,ix){if(x.id===id)k=ix});if(k>=0)index.list[k]=e;else index.list.push(e);
+function whoAmI(){return window.padelWho||null}
+function isMine(e){var w=whoAmI();if(!w||w.role==='admin')return true;return !e||!e.owner||e.owner===w.login}
+function putT(id,st,up,own){var e=entryOf(id,st),k=-1;if(up)e.up=up;index.list.forEach(function(x,ix){if(x.id===id){k=ix;if(x.owner){e.owner=x.owner;e.ownerName=x.ownerName}}});if(own&&own.owner){e.owner=own.owner;e.ownerName=own.ownerName}if(k>=0)index.list[k]=e;else index.list.push(e);
   try{localStorage.setItem(TK+id,JSON.stringify(st));saveIndex();return true}catch(err){return false}}
 function newId(){return 't'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36)}
 function addT(st,seed){var id=newId();putT(id,st);if(seed){index.list.forEach(function(x){if(x.id===id)x.seed=true});saveIndex()}else schedulePush(id);return id}
@@ -542,15 +544,17 @@ function load(){
   }
   S=null;cur=null;home=true;
 }
+var roleBack=null;
 function openT(id){
   var st=null;if(role==='view')st=pubState[id];else{try{st=JSON.parse(localStorage.getItem(TK+id)||'null')}catch(e){}}
+  if(role==='edit'&&!isMine(entryById(id))&&st&&st.pairs){roleBack='edit';role='view';document.body.classList.add('ro')}
   if(!st||!st.pairs){setStatus('Ce tournoi est introuvable.');return}
   S=st;cur=id;home=false;fixState();lastSig[id]=sigOf(S);tab='poules';
   confirmNew=false;confirmReset=false;flash='';selPair=null;koFilter=null;render();window.scrollTo(0,0);
 }
 function goHome(){
   clearTimeout(drawTimer);try{stopTick()}catch(e){}var ovx=document.getElementById('drawcard');if(ovx)ovx.remove();drawAnim=null;
-  if(S&&cur)save();S=null;cur=null;home=true;confirmDel=null;render();window.scrollTo(0,0);
+  if(S&&cur)save();if(roleBack){role=roleBack;roleBack=null;document.body.classList.remove('ro')}S=null;cur=null;home=true;confirmDel=null;render();window.scrollTo(0,0);
 }
 function sigOf(st){var t=st._tab;st._tab='';var j=JSON.stringify(st);st._tab=t;return j}
 function save(){
@@ -573,11 +577,11 @@ function pubJson(raw){try{var o=JSON.parse(raw);(o.pairs||[]).forEach(function(p
 function pushNow(id){
   if(!dbh||role!=='edit'||syncState==='ro')return;
   if(inflight[id]){schedulePush(id);return}
-  var e=entryById(id);if(!e||e.seed)return;
+  var e=entryById(id);if(!e||e.seed||!isMine(e))return;
   var raw=null;try{raw=localStorage.getItem(TK+id)}catch(x){}if(!raw)return;
   if(raw.length>200000){try{var o=JSON.parse(raw);o.sets={};raw=JSON.stringify(o)}catch(x){}}
   inflight[id]=true;
-  Promise.all([dbh.collection('tournaments').doc(id).set({json:raw,up:e.up,deleted:false}),dbh.collection('public').doc(id).set({json:pubJson(raw),up:e.up,deleted:false})]).then(function(){inflight[id]=false;setSync('ok')}).catch(function(err){inflight[id]=false;syncFail(err)});
+  Promise.all([dbh.collection('tournaments').doc(id).set({json:raw,up:e.up,deleted:false}),dbh.collection('public').doc(id).set({json:pubJson(raw),up:e.up,deleted:false})]).then(function(){inflight[id]=false;setSync('ok')}).catch(function(err){inflight[id]=false;if(err&&err.status===403){var ee=entryById(id);if(ee){ee.owner=ee.owner||'?';saveIndex()}return}syncFail(err)});
 }
 function pushDead(id,up){
   if(!dbh||role!=='edit'||syncState==='ro')return;
@@ -587,7 +591,7 @@ function pushDead(id,up){
 function onRemote(snap){
   if(snap.metadata&&snap.metadata.fromCache)return;
   var rem={},changed=false;
-  snap.docs.forEach(function(d){var x=d.data()||{};rem[d.id]={up:+x.up||0,deleted:!!x.deleted,json:x.json}});
+  snap.docs.forEach(function(d){var x=d.data()||{};rem[d.id]={up:+x.up||0,deleted:!!x.deleted,json:x.json,owner:x.owner,ownerName:x.ownerName}});
   var anyLive=Object.keys(rem).some(function(k){return !rem[k].deleted});
   if(anyLive){index.list=index.list.filter(function(e){if(e.seed&&e.id!==cur){try{localStorage.removeItem(TK+e.id)}catch(x){}changed=true;return false}return true})}
   index.dead=index.dead||{};
@@ -600,8 +604,9 @@ function onRemote(snap){
     }
     if(index.dead[id]&&index.dead[id]>r.up){pushDead(id,index.dead[id]);return}
     if(!le||r.up>le.up){
-      if(id!==cur&&r.json){try{var st=JSON.parse(r.json);putT(id,st,r.up);lastSig[id]=sigOf(st);changed=true}catch(x){}}
+      if(id!==cur&&r.json){try{var st=JSON.parse(r.json);putT(id,st,r.up,r);lastSig[id]=sigOf(st);changed=true}catch(x){}}
     }else if(le.up>r.up&&!le.seed)schedulePush(id);
+    if(le&&r.owner&&(le.owner!==r.owner||le.ownerName!==r.ownerName)){le.owner=r.owner;le.ownerName=r.ownerName;changed=true}
   });
   index.list.forEach(function(e){if(!e.seed&&(!rem[e.id]||!pushedOnce))schedulePush(e.id)});pushedOnce=true;
   Object.keys(index.dead).forEach(function(id){if(!rem[id]||!rem[id].deleted)pushDead(id,index.dead[id])});
@@ -1236,7 +1241,7 @@ function viewInscriptions(){
 }
 
 var CONV_SUBJ='Convocation – {tournoi}';
-var CONV_BODY="Bonjour,\n\nRendez-vous à Bad Pad le {date} à {heure} pour les matchs de poule.\n\nLe format du tournoi sera le suivant :\n{format de jeu}\n\nÀ très vite sur les pistes !\n\nSportivement,\nKevin";
+var CONV_BODY="Bonjour,\n\nRendez-vous à Bad Pad le {date} à {heure} pour les matchs de poule.\n\nLe format du tournoi sera le suivant :\n{format de jeu}\n\nÀ très vite sur les pistes !\n\nSportivement,\n{juge}";
 function convEmails(p){var o=[];[p.a,p.b].forEach(function(pl){String(pl&&pl.email||'').split(/[\s,;]+/).forEach(function(x){if(/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)&&o.indexOf(x)<0)o.push(x)})});return o}
 function convFirst(id){var best=null;R.list.forEach(function(m){if((m.a===id||m.b===id)&&m.time&&(!best||m.slot<best.slot||(m.slot===best.slot&&m.court<best.court)))best=m});return best}
 function convHM(t){var m=/(\d{1,2})\s*[:hH]\s*(\d{2})?/.exec(String(t||''));return m?[+m[1],+(m[2]||0)]:null}
@@ -1248,7 +1253,7 @@ function convSel(cls,id,val){var hm=convHM(val),H=hm?hm[0]:-1,Mi=hm?hm[1]:-1,min
 function convFill(tpl,p){
   var f=convFirst(p.id),g=-1;(R.pool||[]).forEach(function(P,i){if(P.ids.indexOf(p.id)>=0)g=i});
   var ter=f&&S.terrains&&S.terrains[f.id]?' sur le terrain '+S.terrains[f.id]:'';
-  var dt=S.meta.date?S.meta.date.split('-').reverse().join('/'):'';var map={date:dt,'format de jeu':S.meta.format||'',prenoms:p.a.prenom+' et '+p.b.prenom,tournoi:tName(),poule:g>=0?'Poule '+(g+1):(f?f.title:'tableau final'),heure:convTime(p)||'(horaire à venir)','heure match':f?f.time:'(horaire à venir)',terrain:ter};
+  var dt=S.meta.date?S.meta.date.split('-').reverse().join('/'):'';var jg=(whoAmI()&&whoAmI().role==='judge'&&whoAmI().name)||'Kevin';var map={juge:jg,date:dt,'format de jeu':S.meta.format||'',prenoms:p.a.prenom+' et '+p.b.prenom,tournoi:tName(),poule:g>=0?'Poule '+(g+1):(f?f.title:'tableau final'),heure:convTime(p)||'(horaire à venir)','heure match':f?f.time:'(horaire à venir)',terrain:ter};
   return tpl.replace(/\{([\w ]+)\}/g,function(x,k){return map[k]!=null?map[k]:x});
 }
 function convLinks(to,su,body,bcc){
@@ -1272,10 +1277,10 @@ function viewConvoc(){
       '<td data-l="Mail">'+(L?'<a class="btn sm primary" target="_blank" rel="noopener" href="'+esc(L.g)+'">Gmail</a> <a class="btn sm" href="'+esc(L.m)+'">Autre messagerie</a>':'<span class="sub">—</span>')+'</td></tr>';
   });
   var gsub=subj.replace(/\{tournoi\}/g,tName()).replace(/\s*[–-]?\s*\{\w+\}/g,'');
-  var gen=convLinks([],gsub,'Bonjour,\n\nRendez-vous à Bad Pad le '+(S.meta.date?S.meta.date.split('-').reverse().join('/'):'')+' pour le tournoi '+tName()+'.\nVotre horaire de premier match est disponible sur le planning du site.\n\nLe format du tournoi sera le suivant :\n'+(S.meta.format||'')+'\n\nÀ très vite sur les pistes !\n\nSportivement,\nKevin',all);
+  var gen=convLinks([],gsub,'Bonjour,\n\nRendez-vous à Bad Pad le '+(S.meta.date?S.meta.date.split('-').reverse().join('/'):'')+' pour le tournoi '+tName()+'.\nVotre horaire de premier match est disponible sur le planning du site.\n\nLe format du tournoi sera le suivant :\n'+(S.meta.format||'')+'\n\nÀ très vite sur les pistes !\n\nSportivement,\n'+((whoAmI()&&whoAmI().role==='judge'&&whoAmI().name)||'Kevin'),all);
   var gm=all.length?'<a class="btn primary" target="_blank" rel="noopener" href="'+esc(gen.g)+'">Un seul mail à tous (copie cachée) – Gmail</a> <a class="btn" href="'+esc(gen.m)+'">Autre messagerie</a>':'';
   return '<h2>Convocations</h2><p class="sub" style="margin:2px 0 10px">Le bouton ouvre un mail déjà rédigé dans ta messagerie (envoyé depuis ton adresse) : tu vérifies puis tu cliques sur Envoyer.</p>'+
-    '<section class="card"><h3>Modèle du message</h3><p class="sub">Mots remplacés automatiquement : {date} {heure} (heure de convocation) {heure match} {format de jeu} {tournoi} {prenoms} {poule} {terrain}</p>'+
+    '<section class="card"><h3>Modèle du message</h3><p class="sub">Mots remplacés automatiquement : {date} {heure} (heure de convocation) {heure match} {format de jeu} {juge} {tournoi} {prenoms} {poule} {terrain}</p>'+
     '<label class="f">Objet<input data-meta="convSubject" value="'+esc(subj)+'"></label>'+
     '<label class="f">Message<textarea data-meta="convBody" rows="9" style="width:100%;font:inherit">'+esc(body)+'</textarea></label></section>'+
     '<section class="card"><h3>Heure de convocation</h3><div class="row" style="align-items:center;gap:8px;flex-wrap:wrap"><b>Toutes les paires :</b> '+convSel('glob','',S.meta.convG||'')+
@@ -1609,9 +1614,10 @@ function renderHome(){
       out+='<h3 style="margin:22px 0 0;text-transform:capitalize;color:var(--court)">'+lab+'</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;margin-top:8px">';
       lastM=mk;open=true;
     }
-    out+='<div class="card" style="display:flex;flex-direction:column;gap:6px"><h3 style="margin:0">'+esc(e.name)+'</h3><div class="sub">'+esc(fmtDateShort(e.date))+' · '+e.n+' paire'+(e.n>1?'s':'')+(e.teams?' sur '+e.teams+' prévues':'')+(e.drawn?' · tableau tiré':'')+'</div>';
+    var mineT=!EDIT||isMine(e);
+    out+='<div class="card" style="display:flex;flex-direction:column;gap:6px"><h3 style="margin:0">'+esc(e.name)+'</h3><div class="sub">'+esc(fmtDateShort(e.date))+' · '+e.n+' paire'+(e.n>1?'s':'')+(e.teams?' sur '+e.teams+' prévues':'')+(e.drawn?' · tableau tiré':'')+'</div>'+(EDIT&&whoAmI()&&e.ownerName&&(!mineT||whoAmI().role==='admin'&&e.owner&&e.owner!=='admin')?'<div class="sub"><b>Juge-arbitre : '+esc(e.ownerName)+'</b>'+(mineT?'':' · lecture seule')+'</div>':'');
     if(confirmDel===e.id)out+='<div class="notice bad" style="margin:6px 0 0"><b>Supprimer ce tournoi définitivement ?</b> <button class="btn sm danger" data-act="t-del-yes" data-id="'+e.id+'">Oui, supprimer</button> <button class="btn sm" data-act="t-del-no">Annuler</button></div>';
-    else out+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn primary" data-act="t-open" data-id="'+e.id+'">'+(EDIT?'Ouvrir':'Voir')+'</button>'+(EDIT?'<button class="btn sm" data-act="t-dup" data-id="'+e.id+'">Dupliquer</button><button class="btn sm danger" data-act="t-del" data-id="'+e.id+'">Supprimer</button>':'')+'</div>';
+    else out+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn primary" data-act="t-open" data-id="'+e.id+'">'+(EDIT&&mineT?'Ouvrir':'Voir')+'</button>'+(EDIT?'<button class="btn sm" data-act="t-dup" data-id="'+e.id+'">Dupliquer</button>'+(mineT?'<button class="btn sm danger" data-act="t-del" data-id="'+e.id+'">Supprimer</button>':''):'')+'</div>';
     out+='</div>';
   });
   if(open)out+='</div>';

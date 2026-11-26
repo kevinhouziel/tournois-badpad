@@ -20,11 +20,46 @@ function safeEqual(a, b) {
   for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return d === 0;
 }
-async function isAdmin(req, pw) {
-  if (!pw) return false;
+/* ---- Comptes juges-arbitres : identifiant + mot de passe créés par l'administrateur ---- */
+const LOGIN_RE = /^[a-z0-9_-]{2,24}$/;
+async function hmacHex(pw, data) {
+  const key = await crypto.subtle.importKey('raw', enc.encode(pw), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return hex(await crypto.subtle.sign('HMAC', key, enc.encode(data)));
+}
+async function pbkdf2(password, saltHex) {
+  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const salt = new Uint8Array(saltHex.match(/../g).map(h => parseInt(h, 16)));
+  return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100000 }, key, 256));
+}
+const judgeToken = async (pw, login, hash) => 'j.' + login + '.' + await hmacHex(pw, 'padel-judge-v1:' + login + ':' + hash);
+/* Renvoie { role: 'admin' | 'judge', login, name } ou null */
+async function auth(req, store, pw) {
+  if (!pw) return null;
   const h = req.headers.get('authorization') || '';
   const t = h.startsWith('Bearer ') ? h.slice(7) : '';
-  return safeEqual(t, await tokenFor(pw));
+  if (!t) return null;
+  if (!t.includes('.')) return safeEqual(t, await tokenFor(pw)) ? { role: 'admin', login: 'admin', name: 'Administrateur' } : null;
+  const [pfx, login, sig] = t.split('.');
+  if (pfx !== 'j' || !LOGIN_RE.test(login || '') || !sig) return null;
+  const user = await store.get('users/' + login);
+  if (!user) return null;
+  return safeEqual(sig, (await judgeToken(pw, login, user.hash)).split('.')[2]) ? { role: 'judge', login, name: user.name } : null;
+}
+async function isAdmin(req, store, pw) { const a = await auth(req, store, pw); return !!a && a.role === 'admin'; }
+/* Propriétaire d'un tournoi : null s'il n'existe pas encore */
+async function ownerOf(store, tid) {
+  const t = await store.get('tournaments/' + tid).catch(() => null);
+  if (t) return t.owner || 'admin';
+  const p = await store.get('pub/' + tid).catch(() => null);
+  return p ? (p.owner || 'admin') : null;
+}
+const canManage = async (a, store, tid) => !!a && (a.role === 'admin' || (await ownerOf(store, tid)) === a.login);
+function stripContacts(raw) {
+  try {
+    const o = JSON.parse(raw);
+    (o.pairs || []).forEach(p => ['a', 'b'].forEach(k => { if (p && p[k]) { p[k].email = ''; p[k].tel = ''; p[k].naissance = ''; } }));
+    return JSON.stringify(o);
+  } catch (e) { return ''; }
 }
 
 // Petit "magasin" clé/valeur au-dessus de D1 (table kv : key, value)
@@ -95,17 +130,72 @@ async function handle(req, store, pw) {
       const body = await req.json().catch(() => ({}));
       if (!pw) return json({ error: 'no_password_configured' }, 500);
       const given = typeof body.password === 'string' ? body.password.trim() : '';
-      if (safeEqual(given, pw)) return json({ token: await tokenFor(pw) });
+      const login = typeof body.login === 'string' ? body.login.trim().toLowerCase() : '';
+      if (!login || login === 'admin') {
+        if (safeEqual(given, pw)) return json({ token: await tokenFor(pw), role: 'admin', login: 'admin', name: 'Administrateur' });
+        return json({ error: 'bad_password' }, 401);
+      }
+      const user = LOGIN_RE.test(login) ? await store.get('users/' + login) : null;
+      if (user && safeEqual(await pbkdf2(given, user.salt), user.hash)) {
+        return json({ token: await judgeToken(pw, login, user.hash), role: 'judge', login, name: user.name });
+      }
       return json({ error: 'bad_password' }, 401);
     }
+    if (req.method === 'GET' && parts[0] === 'me') {
+      const a = await auth(req, store, pw);
+      return a ? json(a) : json({ error: 'unauthorized' }, 401);
+    }
+    /* gestion des juges : administrateur seulement */
+    if (parts[0] === 'users') {
+      if (!(await isAdmin(req, store, pw))) return json({ error: 'unauthorized' }, 401);
+      if (req.method === 'GET' && parts.length === 1) {
+        const us = await store.listJSON('users/');
+        return json(us.map(u => ({ login: u.login, name: u.name, created: u.created })).sort((x, y) => x.name.localeCompare(y.name)));
+      }
+      if (req.method === 'PUT' && LOGIN_RE.test(parts[1] || '') && parts[1] !== 'admin') {
+        const b = await req.json().catch(() => ({}));
+        const name = String(b.name || '').replace(/[<>&"\u0000-\u001f]/g, '').trim().slice(0, 40);
+        const prev = await store.get('users/' + parts[1]);
+        if (!name) return json({ error: 'name_required' }, 400);
+        const password = typeof b.password === 'string' ? b.password.trim() : '';
+        if (!prev && password.length < 6) return json({ error: 'password_too_short' }, 400);
+        if (password && password.length < 6) return json({ error: 'password_too_short' }, 400);
+        let salt = prev && prev.salt, hash = prev && prev.hash;
+        if (password) {
+          salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+          hash = await pbkdf2(password, salt);
+        }
+        await store.setJSON('users/' + parts[1], { login: parts[1], name, salt, hash, created: (prev && prev.created) || Date.now() });
+        return json({ ok: true });
+      }
+      if (req.method === 'DELETE' && LOGIN_RE.test(parts[1] || '')) {
+        await store.delete('users/' + parts[1]);
+        return json({ ok: true });
+      }
+      return json({ error: 'not_found' }, 404);
+    }
     if (req.method === 'GET' && parts[0] === 'list' && TABLES.includes(parts[1])) {
-      if (parts[1] === 'tournaments' && !(await isAdmin(req, pw))) return json({ error: 'unauthorized' }, 401);
-      return json(await store.listJSON(parts[1] + '/'));
+      const rows = await store.listJSON(parts[1] + '/');
+      if (parts[1] === 'tournaments') {
+        const a = await auth(req, store, pw);
+        if (!a) return json({ error: 'unauthorized' }, 401);
+        const names = {};
+        (await store.listJSON('users/')).forEach(u => { names[u.login] = u.name; });
+        return json(rows.map(r => {
+          const owner = r.owner || 'admin';
+          const mine = a.role === 'admin' || owner === a.login;
+          return { ...r, owner, ownerName: owner === 'admin' ? 'Administrateur' : (names[owner] || owner), json: mine || r.deleted ? r.json : stripContacts(r.json) };
+        }));
+      }
+      return json(rows.map(r => { const { owner, ...rest } = r; return rest; }));
     }
     if (req.method === 'PUT' && parts[0] === 'doc' && TABLES.includes(parts[1]) && /^[\w-]{1,80}$/.test(parts[2] || '')) {
-      if (!(await isAdmin(req, pw))) return json({ error: 'unauthorized' }, 401);
+      const a = await auth(req, store, pw);
+      if (!a) return json({ error: 'unauthorized' }, 401);
+      const cur = await ownerOf(store, parts[2]);
+      if (a.role !== 'admin' && cur && cur !== a.login) return json({ error: 'forbidden' }, 403);
       const b = await req.json();
-      const row = { id: parts[2], json: typeof b.json === 'string' ? b.json : '', up: Number(b.up) || 0, deleted: !!b.deleted };
+      const row = { id: parts[2], json: typeof b.json === 'string' ? b.json : '', up: Number(b.up) || 0, deleted: !!b.deleted, owner: cur || a.login };
       await store.setJSON(parts[1] + '/' + parts[2], row);
       return json({ ok: true });
     }
@@ -134,7 +224,7 @@ async function handle(req, store, pw) {
         return json({ ok: true, h, picks });
       }
       if (req.method === 'DELETE' && /^[0-9a-f]{16}$/.test(parts[2])) {
-        if (!(await isAdmin(req, pw))) return json({ error: 'unauthorized' }, 401);
+        if (!(await canManage(await auth(req, store, pw), store, tid))) return json({ error: 'unauthorized' }, 401);
         await store.delete('votes/' + tid + '/' + parts[2]);
         return json({ ok: true });
       }
