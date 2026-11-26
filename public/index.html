@@ -1365,6 +1365,7 @@ function viewTableau(part){
   return out+'</div>';
 }
 
+function clubsOf(q){var a=(q.a.club||'').trim(),b=(q.b.club||'').trim();return a&&b?(a.toLowerCase()===b.toLowerCase()?a:a+' / '+b):(a||b)}
 function viewClassement(){
   if(!R.ok) return needOk();
   var out='<div class="row" style="align-items:center"><div style="flex:3 1 300px"><h2>Classement final</h2><div class="sub">Points attribués à chaque joueur de la paire : barème '+esc(S.meta.level)+(PTS[S.meta.level]&&!Array.isArray(PTS[S.meta.level])&&PTS[S.meta.level].F?' '+(S.meta.gender==='Dames'?'dames':'messieurs'):'')+(S.customPoints?' personnalisé':', saison 2026/2027')+'.</div></div><div style="flex:none"><button class="btn" data-act="export-xlsx">Exporter Excel</button></div></div>';
@@ -1372,7 +1373,7 @@ function viewClassement(){
   for(var pl=1;pl<=R.N;pl++){
     var id=R.places[pl], p=id&&R.by[id];
     var dp=R.dispPlace[pl]||pl;
-    out+='<tr'+(pl<=3?' class="medal m'+pl+'"':'')+'><td class="pl">'+dp+'</td><td>'+(p?'<b>'+esc(p.p.a.prenom+' '+p.p.a.nom+' · '+p.p.b.prenom+' '+p.p.b.nom)+'</b>':'<span class="muted">En attente</span>')+'</td><td>'+(p?esc(p.p.a.club):'')+'</td><td class="num pts">'+(p?pointsFor(dp):'')+'</td></tr>';
+    out+='<tr'+(pl<=3?' class="medal m'+pl+'"':'')+'><td class="pl">'+dp+'</td><td>'+(p?'<b>'+esc(p.p.a.prenom+' '+p.p.a.nom+' · '+p.p.b.prenom+' '+p.p.b.nom)+'</b>':'<span class="muted">En attente</span>')+'</td><td>'+(p?esc(clubsOf(p.p)):'')+'</td><td class="num pts">'+(p?pointsFor(dp):'')+'</td></tr>';
   }
   return out+'</tbody></table></div></section>';
 }
@@ -1718,7 +1719,7 @@ function exportXlsx(){
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(mt),'3- Matchs');
     var cl=[['Place','Paire','Joueur 1','Joueur 2','Club','Points']];
     for(var pl=1;pl<=R.N;pl++){var id=R.places[pl],p=id&&R.by[id];
-      var dp=R.dispPlace[pl]||pl;cl.push([dp,p?R.names(id):'',p?p.p.a.prenom+' '+p.p.a.nom:'',p?p.p.b.prenom+' '+p.p.b.nom:'',p?p.p.a.club:'',p?pointsFor(dp):''])}
+      var dp=R.dispPlace[pl]||pl;cl.push([dp,p?R.names(id):'',p?p.p.a.prenom+' '+p.p.a.nom:'',p?p.p.b.prenom+' '+p.p.b.nom:'',p?clubsOf(p.p):'',p?pointsFor(dp):''])}
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(cl),'4- Classement');
   }
   var out=XLSX.write(wb,{type:'array',bookType:'xlsx'});
