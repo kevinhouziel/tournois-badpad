@@ -3,6 +3,7 @@
   "main": "worker.js",
   "routes": [
     { "pattern": "tournois-badpad.fr", "custom_domain": true },
+    { "pattern": "www.tournois-badpad.fr", "custom_domain": true },
     { "pattern": "pro.tournois-badpad.fr", "custom_domain": true }
   ],
   "compatibility_date": "2025-11-01",
