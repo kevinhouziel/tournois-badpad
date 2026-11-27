@@ -1281,7 +1281,7 @@ function viewConvoc(){
   });
   var gsub=subj.replace(/\{tournoi\}/g,tName()).replace(/\s*[–-]?\s*\{\w+\}/g,'');
   var gen=convLinks([],gsub,'Bonjour,\n\nRendez-vous à Bad Pad le '+(S.meta.date?S.meta.date.split('-').reverse().join('/'):'')+' pour le tournoi '+tName()+'.\nVotre horaire de premier match est disponible sur le planning du site.\n\nLe format du tournoi sera le suivant :\n'+(S.meta.format||'')+'\n\nÀ très vite sur les pistes !\n\nSportivement,\n'+((whoAmI()&&whoAmI().role==='judge'&&whoAmI().name)||'Kevin'),all);
-  var gm=all.length?'<a class="btn primary" target="_blank" rel="noopener" href="'+esc(gen.g)+'">Un seul mail à tous (copie cachée) – Gmail</a> <a class="btn" href="'+esc(gen.m)+'">Autre messagerie</a>':'';
+  var gm=all.length?'<a class="btn primary" target="_blank" rel="noopener" href="'+esc(gen.g)+'">Un seul mail à tous (copie cachée) – Gmail</a> <a class="btn" href="'+esc(gen.m)+'">Autre messagerie</a> <a class="btn" target="_blank" rel="noopener" href="https://mail.google.com/mail/u/0/">Voir ma boîte Gmail (quel compte ?)</a>':'';
   return '<h2>Convocations</h2><p class="sub" style="margin:2px 0 10px">Le bouton ouvre un mail déjà rédigé dans ta messagerie (envoyé depuis ton adresse) : tu vérifies puis tu cliques sur Envoyer.</p>'+
     '<section class="card"><h3>Modèle du message</h3><p class="sub">Mots remplacés automatiquement : {date} {heure} (heure de convocation) {heure match} {format de jeu} {juge} {tournoi} {prenoms} {poule} {terrain}</p>'+
     '<label class="f">Objet<input data-meta="convSubject" value="'+esc(subj)+'"></label>'+
