@@ -1217,7 +1217,7 @@ function viewAccueil(){
   out+='<section class="card"><h3>Le tournoi</h3><div class="row" style="margin-top:12px">'+
    '<label class="f">Catégorie<select data-meta="level">'+LEVELS.map(function(l){return opt(l,M.level)}).join('')+'</select></label>'+
    '<label class="f">Genre<select data-meta="gender">'+GENDERS.map(function(l){return opt(l,M.gender)}).join('')+'</select></label>'+
-   '<label class="f">Date<input type="date" data-meta="date" value="'+esc(M.date)+'"></label></div>'+
+   '<label class="f">Date<input type="date" data-meta="date" data-fk="meta-date" min="2020-01-01" max="2099-12-31" value="'+esc(M.date)+'"></label></div>'+
    '<div class="row" style="margin-top:12px"><label class="f" style="flex:1 1 100%">Juge-arbitre<input data-meta="ja" maxlength="60" placeholder="Prénom NOM" value="'+esc(M.ja)+'"></label></div>'+
    '<div class="row" style="margin-top:12px"><label class="f" style="flex:1 1 100%">Nom du tournoi (automatique)<input value="'+esc(tName())+'" readonly disabled></label>'+
    '<label class="f" style="flex:1 1 100%">Format de jeu<input value="'+esc(M.fmtCode+' : '+M.format)+'" readonly disabled></label></div></section>';
@@ -2099,6 +2099,10 @@ document.addEventListener('change',function(e){
     change();return}
   if(t.dataset.meta){
     var k=t.dataset.meta,v=t.value;
+    /* date en cours de frappe (année 0002, 0020, 0202…) : on attend une année complète avant de recalculer */
+    if(k==='date'&&v&&!/^20\d\d-\d\d-\d\d$/.test(v))return;
+    /* pas de re-rendu pendant la saisie (il ramenait le curseur sur le mois à chaque chiffre) : on enregistre et on met juste le titre à jour */
+    if(k==='date'){S.meta.date=v;save();var tt2=document.getElementById('ttl');if(tt2)tt2.textContent=tName();return}
     if(['dur','courts','pause','teams','poules','seeds','qualified','seedRound'].indexOf(k)>=0){v=toInt(v,0)}
     S.meta[k]=v;
     if(k==='fmtCode'){if(FORMATS[v])S.meta.format=FORMATS[v]}
