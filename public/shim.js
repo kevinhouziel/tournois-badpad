@@ -4,6 +4,8 @@
   var TK='padel-admin-token',WK='padel-who';
   /* adresse publique (spectateurs) : aucune connexion, aucun outil d'administration. L'espace pro est sur pro.tournois-badpad.fr */
   var PUB=/^(www\.)?tournois-badpad\.fr$/i.test(location.hostname);
+  /* titre de l'onglet du navigateur : distingue la vue spectateur et la vue juge-arbitre */
+  try{if(PUB)document.title='Bad Pad · Tournois';else if(/^pro\.tournois-badpad\.fr$/i.test(location.hostname))document.title='Bad Pad · Espace juge-arbitre'}catch(e){}
   /* qui est connecté (juge ou administrateur) : lu tout de suite, vérifié ensuite auprès du serveur */
   (function(){try{var w=JSON.parse(localStorage.getItem(WK)||'null');var t=localStorage.getItem(TK)||'';
     if(t&&!PUB){window.padelWho=(w&&w.login)?w:{role:t.indexOf('.')>0?'judge':'admin',login:t.indexOf('.')>0?'':'admin',name:'Administrateur'}}}catch(e){}})();
