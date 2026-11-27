@@ -130,17 +130,18 @@ tr.pairsep td{border-top:2px solid var(--ink2)}
 .pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600;background:var(--court-soft);color:var(--court)}
 .pill.ok{background:var(--win);color:var(--good)}
 .stand td,.stand th{padding:3px 6px}
-.prg{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;align-items:start}
+.prg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:10px;align-items:stretch}.prg .pcard{padding:10px 8px;margin:0}
+body.ro #view .prv label,body.ro #view .prv input.pr{pointer-events:auto}
 .prbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
 .prbar i{display:block;height:100%;background:var(--court);border-radius:5px;transition:width .3s}
 .pcard h3{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 4px}
-.duel{border:1px solid var(--line);border-radius:12px;padding:8px;margin-top:8px;background:#fff}
+.duel{border:1px solid var(--line);border-radius:12px;padding:5px;margin-top:6px;background:#fff}
 .duel.done{background:#faf7f2}
 .duel .dh{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink2);margin-bottom:6px;font-weight:600}
-.duel .dm{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:stretch}
-.duel .vs{align-self:center;font-weight:800;color:var(--ink2);font-size:12px;min-width:30px;text-align:center}
+.duel .dm{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:3px;align-items:stretch}
+.duel .vs{align-self:center;font-weight:800;color:var(--ink2);font-size:11px;min-width:22px;text-align:center}
 .duel .vs.sc{font-size:1.25em;color:var(--ink);white-space:nowrap}
-.duel button.prp{white-space:normal;text-align:center;width:100%;padding:8px 6px;line-height:1.25;border-radius:10px;font-weight:600}
+.duel button.prp{white-space:normal;text-align:center;width:100%;padding:7px 3px;line-height:1.2;border-radius:10px;font-weight:600;font-size:13px;overflow-wrap:anywhere}
 .duel button.prp.good{background:#d8f0d5!important;border-color:#2e7d32!important;color:#14531a!important}
 .duel button.prp.bad{background:#fadad7!important;border-color:#b3261e!important;color:#7a1b15!important}
 .duel button.primary .sub{color:#fff!important;opacity:.85}
@@ -1552,8 +1553,7 @@ function viewPronos(){return '<div class="prv">'+viewPronos0()+'</div>'}
 function viewPronos0(){
   if(!R.ok)return needOk();
   var name=prName(),me=PR.picks||{},NG=(R.pool||[]).length,sub=PR.sub;
-  var subs=[['poules','Poules']];
-  subs.push(['ko','Tableau final'],['vainqueurs','Vainqueurs'],['classement','Classement']);
+  var subs=[['poules','Poules'],['vainqueurs','Vainqueurs'],['ko','Tableau final'],['classement','Classement']];
   if(!subs.some(function(x){return x[0]===sub}))sub=subs[0][0];
   var out='<div class="row" style="align-items:center"><div style="flex:1 1 220px"><h2 style="margin:0">Mes Pronos</h2><p class="sub" style="margin:2px 0 0"><b>1 point par bon prono</b> · fermé au lancement du match</p></div>'+(prTest()?'<div style="flex:none;display:flex;gap:6px"><button class="btn pr" data-act="pr-fake">+ 12 votants de test</button><button class="btn pr" data-act="pr-clear">Effacer les votes test</button></div>':'')+'</div>'+(prTest()?'<div class="notice warn" style="margin-top:8px">Mode test : les pronos sont enregistrés seulement sur cet appareil, pas sur le site.</div>':'')+
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 2px">'+subs.map(function(x){return '<button class="btn pr'+(sub===x[0]?' primary':'')+'" data-act="pr-sub" data-v="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div>';
