@@ -1541,7 +1541,7 @@ function prPts(p,m){
 function prSpecials(){
   var L=[{k:'W',title:'Vainqueur du tournoi',ids:R.order.length&&R.all?R.all.filter(function(x){return x.act}).sort(function(x,y){return x.w-y.w}).map(function(x){return x.id}):[],win:R.places&&R.places[1]||null}];
   (R.pool||[]).forEach(function(P,i){L.push({k:'G'+(i+1),title:'Vainqueur de la poule '+(i+1),ids:P.ids.slice().sort(function(x,y){return R.by[x].w-R.by[y].w}),win:P.done&&P.rows[0]?P.rows[0].id:null})});
-  return L;
+  return L.slice(1).concat(L[0]); /* poules d'abord, vainqueur du tournoi en dernier */
 }
 function prStats(){
   var by={};R.list.forEach(function(m){by[m.id]=m});var sp={};prSpecials().forEach(function(x){sp[x.k]=x});
