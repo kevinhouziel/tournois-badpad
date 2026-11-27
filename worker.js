@@ -122,6 +122,24 @@ async function lockedIds(store, tid) {
   return locked;
 }
 
+
+/* Envoi : Resend si RESEND_API_KEY est défini, sinon liaison Cloudflare Email (EMAIL) */
+async function sendMail(env, m) {
+  if (env.RESEND_API_KEY) {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer ' + env.RESEND_API_KEY },
+      body: JSON.stringify({ from: m.from.name + ' <' + m.from.email + '>', to: m.to, subject: m.subject, text: m.text, ...(m.replyTo ? { reply_to: m.replyTo } : {}) })
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      const e = new Error(j.message || ('http ' + r.status)); e.code = j.name || ('http_' + r.status); throw e;
+    }
+    return r.json();
+  }
+  return env.EMAIL.send(m);
+}
+
 async function handle(req, store, pw, env) {
   const url = new URL(req.url);
   const parts = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
@@ -145,7 +163,7 @@ async function handle(req, store, pw, env) {
     if (req.method === 'POST' && parts[0] === 'send-convocations') {
       const a = await auth(req, store, pw);
       if (!a) return json({ error: 'unauthorized' }, 401);
-      if (!env || !env.EMAIL) return json({ error: 'email_not_configured' }, 501);
+      if (!env || !(env.RESEND_API_KEY || env.EMAIL)) return json({ error: 'email_not_configured' }, 501);
       const b = await req.json().catch(() => ({}));
       const EM = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
       const msgs = Array.isArray(b.messages) ? b.messages.slice(0, 40) : [];
@@ -160,14 +178,14 @@ async function handle(req, store, pw, env) {
         try {
           const msg = { from: FROM, to, subject, text };
           if (copy) msg.replyTo = copy;
-          await env.EMAIL.send(msg);
+          await sendMail(env, msg);
           sent.push(to);
         } catch (e) { failed.push({ to, code: (e && e.code) || 'error', message: String((e && e.message) || '').slice(0, 160) }); }
       }
       let copySent = false;
       if (copy && b.recap) {
         try {
-          await env.EMAIL.send({ from: FROM, to: [copy], subject: String(b.recapSubject || 'Copie des convocations').slice(0, 200), text: String(b.recap).slice(0, 20000) });
+          await sendMail(env, { from: FROM, to: [copy], subject: String(b.recapSubject || 'Copie des convocations').slice(0, 200), text: String(b.recap).slice(0, 20000) });
           copySent = true;
         } catch (e) { /* la copie ne bloque pas l'envoi */ }
       }
