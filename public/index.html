@@ -1260,8 +1260,9 @@ function convFill(tpl,p){
 }
 function convLinks(to,su,body,bcc){
   var q='su='+encodeURIComponent(su)+'&body='+encodeURIComponent(body);
-  var g='https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(to.join(','))+(bcc?'&bcc='+encodeURIComponent(bcc.join(',')):'')+'&'+q;
   var m='mailto:'+to.map(encodeURIComponent).join(',')+'?'+(bcc?'bcc='+encodeURIComponent(bcc.join(','))+'&':'')+q;
+  /* page Gmail complète (boîte de réception visible, avatar du compte en haut à droite) avec le message déjà ouvert */
+  var g='https://mail.google.com/mail/?extsrc=mailto&url='+encodeURIComponent(m);
   return {g:g,m:m};
 }
 function viewConvoc(){
