@@ -131,6 +131,7 @@ tr.pairsep td{border-top:2px solid var(--ink2)}
 .pill.ok{background:var(--win);color:var(--good)}
 .stand td,.stand th{padding:3px 6px}
 .tlive{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.04em;color:#fff;background:#d32f2f;border-radius:999px;padding:2px 10px}.tlive i{width:8px;height:8px;border-radius:50%;background:#fff;animation:livep 1.2s infinite}@keyframes livep{50%{opacity:.25}}
+input.pr::placeholder{color:#c4bdb3;opacity:1}
 .prg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:10px;align-items:stretch}.prg .pcard{padding:10px 8px;margin:0}
 body.ro #view .prv label,body.ro #view .prv input.pr{pointer-events:auto}
 .prbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
@@ -1503,7 +1504,7 @@ function prFake(){
 function prOn(){return !!(cur&&(window.padelApi||role==='edit'))}
 function prDev(){try{var d=localStorage.getItem('padel-dev');if(!d){d='';for(var i=0;i<24;i++)d+='abcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random()*36));localStorage.setItem('padel-dev',d)}return d}catch(e){return PR._d||(PR._d=Math.random().toString(36).slice(2,14).padEnd(10,'x'))}}
 function prName(){var n='';try{n=localStorage.getItem('padel-pseudo')||''}catch(e){n=PR._n||''}
-  if(!n){n='Invité '+(1000+Math.floor(Math.random()*9000));prSetName(n)}return n}
+  if(/^Invité \d+$/.test(n))n='';return n}
 function prSetName(n){PR._n=n;try{localStorage.setItem('padel-pseudo',n)}catch(e){}}
 function prLoad(){
   if(!prOn())return;
@@ -1567,7 +1568,7 @@ function viewPronos0(){
   var out='<div class="row" style="align-items:center"><div style="flex:1 1 220px"><h2 style="margin:0">Mes Pronos</h2><p class="sub" style="margin:2px 0 0"><b>1 point par bon prono</b> · fermé au lancement du match</p></div>'+(prTest()?'<div style="flex:none;display:flex;gap:6px"><button class="btn pr" data-act="pr-fake">+ 12 votants de test</button><button class="btn pr" data-act="pr-clear">Effacer les votes test</button></div>':'')+'</div>'+(prTest()?'<div class="notice warn" style="margin-top:8px">Mode test : les pronos sont enregistrés seulement sur cet appareil, pas sur le site.</div>':'')+
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 2px">'+subs.map(function(x){return '<button class="btn pr'+(sub===x[0]?' primary':'')+'" data-act="pr-sub" data-v="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div>';
   if(PR.err)out+='<div class="notice warn">'+esc(PR.err)+'</div>';
-  out+='<section class="card"><form class="row pr" style="align-items:flex-end;gap:8px" onsubmit="return false"><label class="f" style="flex:1 1 220px">Ton pseudo (tape-le ici, sans compte)<input class="pr" id="prpseudo" maxlength="24" value="'+esc(name)+'" placeholder="Ex : Kevin" onfocus="if(/^Invité \\d+$/.test(this.value))this.select()" onkeydown="if(event.key===\'Enter\'){event.preventDefault();document.querySelector(\'[data-act=pr-pseudo]\').click()}"></label><button type="button" class="btn primary pr" style="flex:none" data-act="pr-pseudo">'+(/^Invité \d+$/.test(name)?'Valider mon pseudo':'Changer le pseudo')+'</button></form>'+(name?'':'<p class="sub" style="margin:8px 0 0">Entre un pseudo pour pouvoir pronostiquer.</p>')+'</section>';
+  out+='<section class="card"><form class="row pr" style="align-items:flex-end;gap:8px" onsubmit="return false"><label class="f" style="flex:1 1 220px">Ton pseudo (tape-le ici, sans compte)<input class="pr" id="prpseudo" maxlength="24" value="'+esc(name)+'" placeholder="nom.prénom" autocomplete="off" onkeydown="if(event.key===\'Enter\'){event.preventDefault();document.querySelector(\'[data-act=pr-pseudo]\').click()}"></label><button type="button" class="btn primary pr" style="flex:none" data-act="pr-pseudo">'+(name?'Changer le pseudo':'Valider mon pseudo')+'</button></form>'+(name?'':'<p class="sub" style="margin:8px 0 0"><b>Entre ton pseudo (par exemple nom.prénom) puis valide pour pouvoir pronostiquer.</b></p>')+'</section>';
   if(sub==='classement'){
     var st=prStats(),adm=role==='edit';
     return out+'<section class="card"><div class="scroll"><table><thead><tr><th>#</th><th>Pseudo</th><th class="num">Points</th><th class="num">Pronos notés</th>'+(adm?'<th></th>':'')+'</tr></thead><tbody>'+
