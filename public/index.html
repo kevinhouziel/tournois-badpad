@@ -1248,8 +1248,7 @@ function viewInscriptions(){
   if(S.demo) out+='<div class="notice"><b>Données d\'exemple.</b></div>';
   out+='<section class="card"><h3>Importer des inscriptions</h3>'+
    '<div class="row"><label class="f" style="flex-basis:260px">Fichier Excel ou CSV<input type="file" id="impfile" accept=".xlsx,.xls,.csv"></label></div>'+
-   '<label class="f" style="margin-top:12px">Ou colle ici les lignes copiées depuis Excel<textarea id="imptext" rows="4" placeholder="Rang\tNom\tPrénom\t…"></textarea></label>'+
-   '<div style="margin-top:8px"><button class="btn" data-act="import-text">Importer le texte collé</button> <span class="sub">'+esc(importMsg)+'</span></div></section>';
+   '<div class="sub" style="margin-top:6px">'+esc(importMsg)+'</div></section>';
   out+='<section class="card"><div class="row" style="justify-content:space-between;align-items:center"><div><h2>Inscriptions</h2></div>'+
    '<div style="flex:none;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" data-act="sort-pairs">Trier par poids</button><button class="btn" data-act="export-pairs">Export Excel des paires</button><button class="btn primary" data-act="add-pair">Ajouter une paire</button></div></div>';
   var noRank=S.pairs.filter(function(p){return isActive(p)&&(!num(p.a.classement)||!num(p.b.classement))}).length;
