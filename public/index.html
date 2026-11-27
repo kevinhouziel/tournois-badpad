@@ -1265,6 +1265,44 @@ function convLinks(to,su,body,bcc){
   var g='https://mail.google.com/mail/?extsrc=mailto&url='+encodeURIComponent(m);
   return {g:g,m:m};
 }
+
+function convCopyGet(){try{return localStorage.getItem('tableaux-padel-copy')||''}catch(e){return ''}}
+function convPreview(){
+  var inp=document.getElementById('convcopy'),copy=(inp&&inp.value||'').trim();
+  try{localStorage.setItem('tableaux-padel-copy',copy)}catch(e){}
+  var M=S.meta,subj=M.convSubject!=null?M.convSubject:CONV_SUBJ,body=M.convBody!=null?M.convBody:CONV_BODY,items=[];
+  S.pairs.forEach(function(p){var b=R.by[p.id];if(!b||!b.act)return;var em=convEmails(p);if(!em.length)return;
+    items.push({name:p.a.prenom+' '+p.a.nom+' / '+p.b.prenom+' '+p.b.nom,to:em,subject:convFill(subj,p),text:convFill(body,p)})});
+  var who=(whoAmI()&&whoAmI().role==='judge'&&whoAmI().name)||'Kevin';
+  var bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px';
+  var okCopy=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(copy);
+  bg.innerHTML='<div class="card" style="max-width:640px;width:100%;max-height:92vh;overflow:auto;background:var(--card,#fff)"><h3>Aperçu avant envoi</h3>'+
+    '<p class="sub">De : <b>Bad Pad – Convocations &lt;convocations@tournois-badpad.fr&gt;</b><br>Signature : <b>'+esc(who)+'</b><br>Copie récapitulative à : <b>'+(okCopy?esc(copy):'— (aucune)')+'</b><br><b>'+items.length+' mail(s)</b> (un par paire, '+items.reduce(function(n,x){return n+x.to.length},0)+' destinataires)</p>'+
+    (items.length?'<label class="f">Voir le message de la paire<select id="cpsel">'+items.map(function(x,i){return '<option value="'+i+'">'+esc(x.name)+'</option>'}).join('')+'</select></label><div id="cpbox" style="border:1px solid #ccc;border-radius:8px;padding:10px;margin:8px 0;font-size:14px"></div>':'<div class="notice warn">Aucune paire avec une adresse e-mail.</div>')+
+    '<div id="cpres" class="sub"></div><div class="row" style="gap:8px;justify-content:flex-end;margin-top:8px"><button class="btn" id="cpno" style="flex:none">Annuler</button>'+(items.length?'<button class="btn primary" id="cpyes" style="flex:none">Envoyer '+items.length+' mail(s)</button>':'')+'</div></div>';
+  document.body.appendChild(bg);
+  function show(){var x=items[+bg.querySelector('#cpsel').value];if(!x)return;bg.querySelector('#cpbox').innerHTML='<div class="sub">À : '+x.to.map(esc).join(', ')+'</div><div><b>'+esc(x.subject)+'</b></div><div style="white-space:pre-wrap;margin-top:6px">'+esc(x.text)+'</div>'}
+  if(items.length){bg.querySelector('#cpsel').onchange=show;show()}
+  bg.querySelector('#cpno').onclick=function(){bg.remove()};
+  var yes=bg.querySelector('#cpyes');
+  if(yes)yes.onclick=function(){
+    yes.disabled=true;var res=bg.querySelector('#cpres');res.textContent='Envoi en cours…';
+    var recap='Convocations envoyées ('+items.length+' mails) – signature '+who+'\n\n'+items.map(function(x){return '• '+x.name+' → '+x.to.join(', ')}).join('\n')+'\n\n----- Exemple de message -----\n'+items[0].subject+'\n\n'+items[0].text;
+    var chunks=[];for(var i=0;i<items.length;i+=20)chunks.push(items.slice(i,i+20));
+    var sent=0,failed=[],cs=false;
+    chunks.reduce(function(pr,ch,ci){return pr.then(function(){
+      var last=ci===chunks.length-1;
+      return window.padelSendMail({messages:ch.map(function(x){return {to:x.to,subject:x.subject,text:x.text}}),copy:okCopy?copy:'',recap:last?recap:'',recapSubject:'[Copie] '+(items[0].subject.replace(/\s*[–-]\s*$/,''))}).then(function(r){
+        if(r.status===401)throw new Error('Session expirée : reconnecte-toi.');
+        if(r.error==='email_not_configured')throw new Error("L'envoi n'est pas encore activé sur le serveur.");
+        if(r.error)throw new Error('Erreur '+r.status);
+        sent+=r.sent||0;failed=failed.concat(r.failed||[]);if(r.copySent)cs=true})})},Promise.resolve())
+    .then(function(){
+      var m=sent+' mail(s) envoyé(s).'+(okCopy?(cs?' Copie envoyée à '+copy+'.':' ⚠ copie non envoyée.'):'');
+      if(failed.length){m+=' ⚠ Échecs : '+failed.map(function(f){return (f.to||[]).join(',')+' ('+f.code+')'}).join(' ; ')}
+      res.innerHTML='<b>'+esc(m)+'</b>';bg.querySelector('#cpno').textContent='Fermer'})
+    .catch(function(e){res.innerHTML='<span style="color:#b00"><b>'+esc(e.message||'Erreur')+'</b></span>'+(sent?' ('+sent+' déjà envoyé(s))':'');yes.disabled=false})};
+}
 function viewConvoc(){
   if(!R.ok)return needOk();
   var M=S.meta,subj=M.convSubject!=null?M.convSubject:CONV_SUBJ,body=M.convBody!=null?M.convBody:CONV_BODY;
@@ -1288,6 +1326,7 @@ function viewConvoc(){
     '<label class="f">Message<textarea data-meta="convBody" rows="9" style="width:100%;font:inherit">'+esc(body)+'</textarea></label></section>'+
     '<section class="card"><h3>Heure de convocation</h3><div class="row" style="align-items:center;gap:8px;flex-wrap:wrap"><b>Toutes les paires :</b> '+convSel('glob','',S.meta.convG||'')+
     ' <button class="btn sm" style="flex:none" data-act="conv-clear">Heure du match</button><span class="sub" style="margin:0 6px 0 14px">ou</span><select id="convoff" style="width:78px!important;flex:none">'+[10,15,20,30].map(function(n){return '<option value="'+n+'"'+((S.meta.convOff||20)===n?' selected':'')+'>'+n+'</option>'}).join('')+'</select> min avant chaque match <button class="btn sm" style="flex:none" data-act="conv-off">Appliquer</button></div><p class="sub" style="margin:6px 0 0">Tu peux ensuite changer l\'heure d\'une paire dans le tableau (équipe qui arrive plus tard).</p></section>'+
+    (window.padelSendMail?'<section class="card"><h3>Envoi depuis le site</h3><p class="sub">Un mail par paire, envoyé depuis l\'adresse globale <b>convocations@tournois-badpad.fr</b>, signé du juge-arbitre connecté. Tu vois un aperçu avant l\'envoi.</p><div class="row" style="gap:8px;align-items:end;flex-wrap:wrap"><label class="f" style="flex:1;min-width:220px">Ma copie (et adresse de réponse des joueurs)<input id="convcopy" type="email" placeholder="ton.adresse@gmail.com" value="'+esc(convCopyGet())+'"></label><button class="btn primary" style="flex:none" data-act="conv-preview">Aperçu et envoi</button></div></section>':'')+
     '<section class="card"><div class="row" style="align-items:center;gap:8px"><h3 style="margin:0;flex:1">Convoquer les paires</h3>'+gm+'</div>'+(miss?'<div class="notice warn" style="margin-top:8px">'+miss+' paire(s) sans adresse e-mail.</div>':'')+
     '<div class="scroll"><table id="plantbl"><thead><tr><th>Paire</th><th>E-mails</th><th>Convocation</th><th>1er match</th><th>Mail</th></tr></thead><tbody>'+rows+'</tbody></table></div></section>';
 }
@@ -1841,6 +1880,7 @@ document.addEventListener('click',function(e){
     if(tx.trim()){applyImport(parseRows(splitText(tx)))}else importMsg='Colle d\'abord des lignes.';change()}
   else if(a==='export-xlsx')exportXlsx();
   else if(a==='export-pairs')exportPairs();
+  else if(a==='conv-preview')convPreview();
   else if(a==='conv-clear'){S.meta.convG='';S.meta.convPair={};change()}
   else if(a==='conv-off'){var n=+document.getElementById('convoff').value||20;S.meta.convOff=n;S.meta.convG='';S.meta.convPair={};S.pairs.forEach(function(q){var f=convFirst(q.id),h=f&&convHM(f.time);if(h){var tt=((h[0]*60+h[1]-n)%1440+1440)%1440;S.meta.convPair[q.id]=p2(Math.floor(tt/60))+':'+p2(tt%60)}});change()}
   else if(a==='export-json')exportJson();

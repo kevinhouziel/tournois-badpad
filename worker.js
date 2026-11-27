@@ -122,7 +122,7 @@ async function lockedIds(store, tid) {
   return locked;
 }
 
-async function handle(req, store, pw) {
+async function handle(req, store, pw, env) {
   const url = new URL(req.url);
   const parts = url.pathname.replace(/^\/api\/?/, '').split('/').filter(Boolean);
   try {
@@ -140,6 +140,38 @@ async function handle(req, store, pw) {
         return json({ token: await judgeToken(pw, login, user.hash), role: 'judge', login, name: user.name });
       }
       return json({ error: 'bad_password' }, 401);
+    }
+    /* envoi des convocations : un mail par paire depuis l'adresse globale, + un récapitulatif en copie */
+    if (req.method === 'POST' && parts[0] === 'send-convocations') {
+      const a = await auth(req, store, pw);
+      if (!a) return json({ error: 'unauthorized' }, 401);
+      if (!env || !env.EMAIL) return json({ error: 'email_not_configured' }, 501);
+      const b = await req.json().catch(() => ({}));
+      const EM = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
+      const msgs = Array.isArray(b.messages) ? b.messages.slice(0, 40) : [];
+      const copy = typeof b.copy === 'string' && EM.test(b.copy.trim()) ? b.copy.trim() : '';
+      const FROM = { email: 'convocations@tournois-badpad.fr', name: 'Bad Pad – Convocations' };
+      const sent = [], failed = [];
+      for (const m of msgs) {
+        const to = (Array.isArray(m.to) ? m.to : []).map(x => String(x).trim()).filter(x => EM.test(x)).slice(0, 4);
+        const subject = String(m.subject || '').replace(/[\r\n]+/g, ' ').slice(0, 200);
+        const text = String(m.text || '').slice(0, 8000);
+        if (!to.length || !subject || !text) { failed.push({ to, code: 'invalid' }); continue; }
+        try {
+          const msg = { from: FROM, to, subject, text };
+          if (copy) msg.replyTo = copy;
+          await env.EMAIL.send(msg);
+          sent.push(to);
+        } catch (e) { failed.push({ to, code: (e && e.code) || 'error', message: String((e && e.message) || '').slice(0, 160) }); }
+      }
+      let copySent = false;
+      if (copy && b.recap) {
+        try {
+          await env.EMAIL.send({ from: FROM, to: [copy], subject: String(b.recapSubject || 'Copie des convocations').slice(0, 200), text: String(b.recap).slice(0, 20000) });
+          copySent = true;
+        } catch (e) { /* la copie ne bloque pas l'envoi */ }
+      }
+      return json({ sent: sent.length, failed, copySent });
     }
     if (req.method === 'GET' && parts[0] === 'me') {
       const a = await auth(req, store, pw);
@@ -256,6 +288,6 @@ async function handle(req, store, pw) {
 export default {
   async fetch(request, env) {
     if (!env.DB) return json({ error: 'server', message: 'Liaison D1 "DB" manquante' }, 500);
-    return handle(request, makeStore(env.DB), (env.ADMIN_PASSWORD || '').trim());
+    return handle(request, makeStore(env.DB), (env.ADMIN_PASSWORD || '').trim(), env);
   }
 };

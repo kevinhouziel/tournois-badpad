@@ -14,6 +14,7 @@
     return fetch('/api/'+path,{method:opt.method||'GET',headers:h,body:opt.body?JSON.stringify(opt.body):undefined,cache:'no-store'})
       .then(function(r){if(!r.ok){var e=new Error('http '+r.status);e.status=r.status;throw e}return r.json()});
   }
+  window.padelSendMail=function(body){return fetch('/api/send-convocations',{method:'POST',headers:{'content-type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify(body)}).then(function(r){return r.json().catch(function(){return {}}).then(function(j){j.status=r.status;return j})})};
   function collection(name){
     var table=name==='public'?'pub':name;
     return {
