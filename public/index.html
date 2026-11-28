@@ -20,7 +20,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:12px 0 0}
 .brand{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
 .brand h1{font-size:clamp(30px,3.1vw,46px);line-height:1.05;display:flex;gap:14px;align-items:center;color:var(--court)}
-.tabrow #qrslot{flex:none;display:flex;align-items:center;margin-bottom:4px}.tabrow #qrslot .qrmini{padding:2px;border-radius:6px}
+.tabrow.hasqr{align-items:flex-end}.tabrow.hasqr #homebtn{height:44px!important;margin-bottom:6px}.tabrow.hasqr nav.tabs{align-self:flex-end}.tabrow #qrslot{flex:none;display:flex;align-items:center;margin-bottom:2px;margin-top:4px}.tabrow #qrslot .qrmini{padding:2px;border-radius:6px}
 @media(max-width:700px){.tabrow #qrslot{display:none}}
 .qrmini{flex:0 0 auto!important;width:max-content!important;max-width:110px;display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);border-radius:8px;padding:4px;background:#fff;font-size:10px;font-weight:700;color:var(--ink2)}
 .logo{cursor:pointer;background:#fff;border-radius:8px;padding:4px 8px;display:inline-flex;border:1px solid var(--line)}.logo img{height:54px;width:auto;display:block}
@@ -1672,7 +1672,7 @@ function render(){
   try{ss=ae.selectionStart;se=ae.selectionEnd}catch(e){}
   var sy=window.scrollY;
   document.body.classList.toggle('wide',tab==='accueil'||tab==='inscriptions'||tab==='convoc'||tab==='pronos'||tab==='poules'||tab==='tableau'||tab==='planning'||tab==='classif'||tab==='classement');
-  document.getElementById('ttl').textContent=tName();var hb=document.getElementById('homebtn');if(hb)hb.textContent='← Les tournois';var qsl=document.getElementById('qrslot');if(qsl)qsl.innerHTML=(tab==='poules'&&cur)?qrMini(46):'';
+  document.getElementById('ttl').textContent=tName();var hb=document.getElementById('homebtn');if(hb)hb.textContent='← Les tournois';var qsl=document.getElementById('qrslot');if(qsl)qsl.innerHTML=(tab==='poules'&&cur)?qrMini(82):'';var trw=document.querySelector('.tabrow');if(trw)trw.classList.toggle('hasqr',!!(qsl&&qsl.innerHTML));
   document.getElementById('subttl').textContent=R.N+' paire'+(R.N>1?'s':'')+(toInt(S.meta.teams,0)?' sur '+S.meta.teams+' prévues':'');
   var VT=['poules','tableau','classif','classement','pronos'];
   if(role==='view'&&VT.indexOf(tab)<0)tab='poules';
