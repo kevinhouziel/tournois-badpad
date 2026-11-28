@@ -125,6 +125,17 @@ async function lockedIds(store, tid) {
 }
 
 
+const parisDay = (t) => new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(new Date(t));
+let _presReady = null;
+function presReady(db) {
+  if (!_presReady) _presReady = (async () => {
+    await db.prepare('CREATE TABLE IF NOT EXISTS presence (sid TEXT PRIMARY KEY, ts INTEGER NOT NULL, tid TEXT)').run();
+    await db.prepare('CREATE TABLE IF NOT EXISTS visitors (day TEXT NOT NULL, sid TEXT NOT NULL, PRIMARY KEY (day, sid))').run();
+    await db.prepare('CREATE TABLE IF NOT EXISTS hits (day TEXT PRIMARY KEY, n INTEGER NOT NULL)').run();
+  })().catch(e => { _presReady = null; throw e; });
+  return _presReady;
+}
+
 /* Envoi : Resend si RESEND_API_KEY est défini, sinon liaison Cloudflare Email (EMAIL) */
 async function sendMail(env, m) {
   if (env.RESEND_API_KEY) {
@@ -192,6 +203,37 @@ async function handle(req, store, pw, env) {
         } catch (e) { /* la copie ne bloque pas l'envoi */ }
       }
       return json({ sent: sent.length, failed, copySent });
+    }
+    /* ---- fréquentation : les spectateurs « pingent » ; seul le pro peut lire les chiffres ---- */
+    if (parts[0] === 'ping' && req.method === 'POST' && env && env.DB) {
+      const b = await req.json().catch(() => ({}));
+      const sid = String(b.sid || '');
+      if (!/^[\w-]{8,40}$/.test(sid)) return json({ ok: false }, 400);
+      const tid = /^[\w-]{1,80}$/.test(b.tid || '') ? b.tid : '';
+      await presReady(env.DB);
+      const now = Date.now(), day = parisDay(now);
+      await env.DB.prepare('INSERT INTO presence (sid, ts, tid) VALUES (?, ?, ?) ON CONFLICT(sid) DO UPDATE SET ts = excluded.ts, tid = excluded.tid').bind(sid, now, tid).run();
+      if (b.first) {
+        const ins = await env.DB.prepare('INSERT OR IGNORE INTO visitors (day, sid) VALUES (?, ?)').bind(day, sid).run();
+        await env.DB.prepare('INSERT INTO hits (day, n) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1').bind(day).run();
+      }
+      return json({ ok: true });
+    }
+    if (parts[0] === 'stats' && req.method === 'GET') {
+      const a = await auth(req, store, pw);
+      if (!a) return json({ error: 'unauthorized' }, 401);
+      if (!env || !env.DB) return json({ error: 'no_db' }, 501);
+      await presReady(env.DB);
+      const now = Date.now(), day = parisDay(now);
+      const one = async (q, ...v) => (await env.DB.prepare(q).bind(...v).first()) || {};
+      const online = (await one('SELECT COUNT(*) c FROM presence WHERE ts > ?', now - 100000)).c || 0;
+      const todayHits = (await one('SELECT n FROM hits WHERE day = ?', day)).n || 0;
+      const todayUnique = (await one('SELECT COUNT(*) c FROM visitors WHERE day = ?', day)).c || 0;
+      const totalHits = (await one('SELECT COALESCE(SUM(n),0) c FROM hits')).c || 0;
+      const totalUnique = (await one('SELECT COUNT(DISTINCT sid) c FROM visitors')).c || 0;
+      const peak = (await one('SELECT COUNT(*) c FROM presence WHERE ts > ?', now - 3600000)).c || 0;
+      if (Math.random() < 0.05) await env.DB.prepare('DELETE FROM presence WHERE ts < ?').bind(now - 86400000).run();
+      return json({ online, lastHour: peak, today: { visits: todayHits, unique: todayUnique }, total: { visits: totalHits, unique: totalUnique } });
     }
     if (req.method === 'GET' && parts[0] === 'me') {
       const a = await auth(req, store, pw);

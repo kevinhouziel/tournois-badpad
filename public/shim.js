@@ -85,6 +85,17 @@
     };
   }
 
+  /* spectateurs : signal de présence toutes les 45 s (pour le compteur « en ligne » du site pro) */
+  (function(){
+    if(!PUB)return;
+    var sid='';try{sid=localStorage.getItem('padel-sid')||'';if(!sid){sid='v'+Math.random().toString(36).slice(2,12)+Date.now().toString(36);localStorage.setItem('padel-sid',sid)}}catch(e){sid='v'+Math.random().toString(36).slice(2,14)}
+    function tid(){var m=/^#\/([^\/]+)/.exec(location.hash||'');return m?decodeURIComponent(m[1]):''}
+    var first=true;
+    function ping(){try{fetch('/api/ping',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sid:sid,tid:tid(),first:first}),keepalive:true}).catch(function(){});first=false}catch(e){}}
+    ping();setInterval(function(){if(document.visibilityState==='visible')ping()},45000);
+    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')ping()});
+  })();
+
   document.addEventListener('DOMContentLoaded',function(){
     if(PUB)return;
     var st=document.createElement('style');
@@ -96,6 +107,18 @@
     var b=document.createElement('button');b.className='adm-l';b.textContent=token()?'Déconnexion'+(who&&who.role==='judge'?' ('+who.name+')':' admin'):'Connexion juge-arbitre';bar.appendChild(b);
     if(token()){
       api('me').then(function(r){try{localStorage.setItem(WK,JSON.stringify({role:r.role,login:r.login,name:r.name}))}catch(e){}window.padelWho=r},function(e){if(e&&e.status===401){try{localStorage.removeItem(TK);localStorage.removeItem(WK)}catch(x){}wipeLocal();location.reload()}});
+    }
+    if(token()){
+      var vb=document.createElement('button');vb.className='adm-l';vb.id='adm-vis';vb.textContent='👁 …';vb.title='Spectateurs en ligne (cliquer pour le détail)';bar.insertBefore(vb,b);
+      var lastStats=null;
+      function pollStats(){api('stats').then(function(r){lastStats=r;vb.textContent='👁 '+r.online+' en ligne · '+r.today.visits+' visite'+(r.today.visits>1?'s':'')+" aujourd'hui"},function(){})}
+      pollStats();setInterval(function(){if(document.visibilityState==='visible')pollStats()},15000);
+      vb.onclick=function(){
+        var r=lastStats;if(!r)return;
+        var bg=document.createElement('div');bg.id='adm-bg';
+        bg.innerHTML='<div id="adm-box"><b style="font-size:16px">Fréquentation du site spectateur</b><div>👁 <b>'+r.online+'</b> en ligne en ce moment<br><span style="color:#777">'+r.lastHour+' appareil(s) actif(s) sur la dernière heure</span></div><div>Aujourd\'hui : <b>'+r.today.visits+'</b> visite(s), <b>'+r.today.unique+'</b> visiteur(s) unique(s)</div><div>Depuis le début : <b>'+r.total.visits+'</b> visite(s), <b>'+r.total.unique+'</b> visiteur(s) unique(s)</div><button class="adm-l" id="adm-x">Fermer</button></div>';
+        document.body.appendChild(bg);bg.onclick=function(e){if(e.target===bg||e.target.id==='adm-x')bg.remove()};
+      };
     }
     if(isAdm){
       var jb=document.createElement('button');jb.className='adm-l';jb.textContent='Juges-arbitres';bar.insertBefore(jb,b);
