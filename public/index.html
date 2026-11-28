@@ -23,13 +23,15 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 #prs-bg{position:fixed;inset:0;z-index:10000;background:var(--bg,#fffaf3);overflow:auto;padding:18px 24px;box-sizing:border-box}
 .prs-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
 .prs-title{font-size:clamp(22px,3vw,44px);font-weight:800;color:var(--court)}
-.prs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}
+.prs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,780px),1fr));gap:18px}
 .prs-card{background:#fff;border:2px solid var(--line);border-radius:18px;padding:16px 18px}
 .prs-card h2{margin:0 0 10px;font-size:clamp(26px,3vw,46px);color:var(--court)}
 .prs-pair{display:flex;align-items:center;gap:14px;padding:10px 0;border-top:1px solid var(--line)}
 .prs-n{flex:none;width:clamp(34px,3.2vw,52px);height:clamp(34px,3.2vw,52px);border-radius:50%;background:var(--court);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:clamp(18px,2vw,30px)}
-.prs-names{flex:1;min-width:0;font-size:clamp(18px,2vw,32px);line-height:1.25}
-.prs-names small{margin-left:8px;color:var(--ink2);font-size:.6em;font-weight:600}
+.prs-names{flex:1;min-width:0;overflow:hidden;line-height:1.25}
+.prs-fit{display:inline-block;white-space:nowrap}
+.prs-fit small{margin-left:.3em;color:var(--ink2);font-size:.6em;font-weight:600}
+.prs-fit i{font-style:normal;margin:0 .3em;color:var(--ink2)}
 .prs-seed{flex:none;font-size:clamp(16px,1.8vw,28px);font-weight:800;color:var(--court)}
 .tabrow #prslot{flex:none;display:none;align-items:flex-end}
 .tabrow.hasqr #prslot{display:flex}.tabrow #prslot button{height:44px;margin-bottom:6px;white-space:nowrap;border-radius:10px;font-size:13px;padding:0 12px}
@@ -1405,13 +1407,23 @@ function presentPoules(){
   var bg=document.createElement('div');bg.id='prs-bg';
   var cards=R.pool.map(function(P,gi){
     var rows=P.ids.map(function(id,kk){var p=R.by[id],q=p.p;
-      return '<div class="prs-pair"><span class="prs-n">'+(kk+1)+'</span><span class="prs-names"><b>'+esc((q.a.prenom||'')+' '+(q.a.nom||'—'))+'</b><small>'+esc(q.a.classement||'')+'</small><br><b>'+esc((q.b.prenom||'')+' '+(q.b.nom||'—'))+'</b><small>'+esc(q.b.classement||'')+'</small></span><span class="prs-seed">'+seedTag(id)+'</span></div>'}).join('');
+      return '<div class="prs-pair"><span class="prs-n">'+(kk+1)+'</span><span class="prs-names"><span class="prs-fit"><b>'+esc((q.a.prenom||'')+' '+(q.a.nom||'—'))+'</b><small>'+esc(q.a.classement||'')+'</small> <i>/</i> <b>'+esc((q.b.prenom||'')+' '+(q.b.nom||'—'))+'</b><small>'+esc(q.b.classement||'')+'</small></span></span><span class="prs-seed">'+seedTag(id)+'</span></div>'}).join('');
     return '<section class="prs-card"><h2>Poule '+(gi+1)+'</h2>'+rows+'</section>'}).join('');
   bg.innerHTML='<div class="prs-top"><div class="prs-title">'+esc(tName())+' · Les poules</div><button type="button" class="btn" id="prs-x">✕ Fermer (Échap)</button></div><div class="prs-grid">'+cards+'</div>';
   document.body.appendChild(bg);
-  function close(){document.removeEventListener('keydown',onk);bg.remove();try{if(document.fullscreenElement)document.exitFullscreen()}catch(e){}}
+  function close(){document.removeEventListener('keydown',onk);window.removeEventListener('resize',onr);bg.remove();try{if(document.fullscreenElement)document.exitFullscreen()}catch(e){}}
   function onk(e){if(e.key==='Escape')close()}
+  function fit(){
+    var els=bg.querySelectorAll('.prs-fit');if(!els.length)return;
+    var lo=10,hi=Math.max(24,Math.min(64,Math.round(window.innerWidth/28)));
+    function ok(px){for(var i=0;i<els.length;i++){els[i].style.fontSize=px+'px';var box=els[i].parentNode;if(els[i].scrollWidth>box.clientWidth+0.5)return false}return true}
+    while(lo<hi){var mid=Math.ceil((lo+hi)/2);if(ok(mid))lo=mid;else hi=mid-1}
+    for(var i=0;i<els.length;i++)els[i].style.fontSize=lo+'px';
+  }
+  function onr(){fit()}
+  window.addEventListener('resize',onr);
   document.addEventListener('keydown',onk);
+  setTimeout(fit,50);setTimeout(fit,400);
   bg.querySelector('#prs-x').onclick=close;
   try{bg.requestFullscreen&&bg.requestFullscreen().catch(function(){})}catch(e){}
 }
