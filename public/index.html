@@ -151,6 +151,8 @@ tr.pairsep td{border-top:2px solid var(--ink2)}
 .stand td,.stand th{padding:3px 6px}
 .tlive{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.04em;color:#fff;background:#d32f2f;border-radius:999px;padding:2px 10px}.tlive i{width:8px;height:8px;border-radius:50%;background:#fff;animation:livep 1.2s infinite}@keyframes livep{50%{opacity:.25}}
 input.pr::placeholder{color:#c4bdb3;opacity:1}
+.pchips{display:none}
+@media(max-width:700px){.pchips{display:flex;gap:6px;overflow-x:auto;margin:4px 0 10px;padding-bottom:2px}.pchips .btn{flex:1 0 auto;white-space:nowrap;padding:9px 12px;font-weight:700}.pgrid .pc:not(.pcsel),.prg .pcard:not(.pcsel){display:none}}
 .prg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:10px;align-items:stretch}.prg .pcard{padding:10px 8px;margin:0}
 body.ro #view .prv label,body.ro #view .prv input.pr{pointer-events:auto}
 .prbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
@@ -364,7 +366,7 @@ body.ro #subttl{text-align:center;font-size:1.05em}
 body.ro .tools{justify-content:flex-end}
 body.ro nav.tabs{justify-content:center}
 body.ro .tools .btn:not([data-act=home]),body.ro .tools label,body.ro .tools input{display:none!important}
-body.ro #view [data-act]:not([data-act=home-tab]):not([data-act=t-open]):not([data-act=ko-filter]):not(.pr),body.ro #view [data-step],body.ro #view .dh,body.ro #view .notice button{display:none!important}
+body.ro #view [data-act]:not([data-act=home-tab]):not([data-act=t-open]):not([data-act=ko-filter]):not([data-act=pg-sel]):not(.pr),body.ro #view [data-step],body.ro #view .dh,body.ro #view .notice button{display:none!important}
 body.ro #view label{pointer-events:none}
 body.ro #view input,body.ro #view select,body.ro #view textarea,body.ro #view [data-drag],body.ro #view [data-pdrag]{pointer-events:none}
 .podium tr.medal td{font-weight:600}
@@ -1434,6 +1436,8 @@ function qrMini(px){
   var n=M.length,p='';for(var y=0;y<n;y++)for(var x=0;x<n;x++)if(M[y][x])p+='M'+(x+2)+' '+(y+2)+'h1v1h-1z';
   return '<div class="qrmini" title="Scanner pour suivre ce tournoi en direct"><svg viewBox="0 0 '+(n+4)+' '+(n+4)+'" shape-rendering="crispEdges" style="width:'+px+'px;height:'+px+'px;display:block;background:#fff"><path d="'+p+'" fill="#000"/></svg></div>';
 }
+var PG_SEL=0;
+function pgChips(n){if(n<2)return '';if(PG_SEL>=n)PG_SEL=0;var h='<div class="pchips">';for(var i=0;i<n;i++)h+='<button type="button" class="btn'+(i===PG_SEL?' primary':'')+'" data-act="pg-sel" data-v="'+i+'">Poule '+(i+1)+'</button>';return h+'</div>'}
 function viewPoules(){
   if(!R.ok) return needOk();
   var out='<div class="row" style="align-items:center;gap:8px;flex-wrap:nowrap"><div style="flex:3 1 200px;min-width:0"><h2 style="font-size:18px;display:inline;margin-right:.6em">Poules</h2><span class="sub" style="font-size:12px">'+(allLast?'<b style="color:var(--court)">Fin estimée de toutes les poules : '+fmtTime(lastAll)+'.</b> ':'')+(R.manual?'<b>Tirage modifié à la main.</b> ':'')+'</span></div>'+
@@ -1441,9 +1445,9 @@ function viewPoules(){
   var est=R.pool.map(function(P){var x=poolEst(P);x.done=P.done;x.started=!!(P.ms.length&&S.starts[P.ms[P.ms.length-1].id]);return x});
   var allLast=est.length>0&&est.every(function(x){return x.started}),lastAll=Math.max.apply(null,est.map(function(x){return x.e}));
   var worst=-1,wd=0;est.forEach(function(x,i){if(!x.done&&x.d>wd){wd=x.d;worst=i}});
-  out+='<div class="pgrid">';
+  out+=pgChips(R.pool.length)+'<div class="pgrid">';
   R.pool.forEach(function(P,gi){
-    out+='<section class="card pc"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><h3>Poule '+(gi+1)+'</h3>'+(P.done?'<span class="pill ok">Terminée</span>':'<span class="pill">En cours</span>')+'</div><div style="margin:.25em 0">';
+    out+='<section class="card pc'+(gi===PG_SEL?' pcsel':'')+'"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><h3>Poule '+(gi+1)+'</h3>'+(P.done?'<span class="pill ok">Terminée</span>':'<span class="pill">En cours</span>')+'</div><div style="margin:.25em 0">';
     P.ids.forEach(function(id,kk){var p=R.by[id];
       out+='<div class="pairline"><span class="pos">'+(kk+1)+'</span><span class="nm"><b>'+esc(p.p.a.nom||'—')+' <span class="rk">('+esc(p.p.a.classement||'—')+')</span> / '+esc(p.p.b.nom||'—')+' <span class="rk">('+esc(p.p.b.classement||'—')+')</span></b></span><span class="pw" title="Poids de paire">'+p.w+'</span><span class="seed">'+seedTag(id)+'</span></div>'});
     out+='</div>';
@@ -1687,10 +1691,10 @@ function viewPronos0(){
         rows+='<div class="duel'+(fin?' done':'')+'"><div class="dh"><span>'+esc(m.time||'')+(S.terrains&&S.terrains[m.id]?' · Terrain '+esc(S.terrains[m.id]):'')+'</span>'+tag+'</div><div class="dm">'+sd('a')+mid+sd('b')+'</div></div>';
       });
       tot+=pt;done+=pd;
-      cards+='<div class="card pcard"><h3><span>Poule '+(gi+1)+'</span>'+(pt?'<span class="pill'+(pd===pt?' ok':'')+'">'+pd+'/'+pt+'</span>':'')+'</h3>'+rows+'</div>';
+      cards+='<div class="card pcard'+(gi===PG_SEL?' pcsel':'')+'"><h3><span>Poule '+(gi+1)+'</span>'+(pt?'<span class="pill'+(pd===pt?' ok':'')+'">'+pd+'/'+pt+'</span>':'')+'</h3>'+rows+'</div>';
     });
     var pc0=tot?Math.round(100*done/tot):0;
-    return out+(name&&tot?'<div class="prbar"><b>Tes pronos de poules</b><div style="flex:1;height:10px;border-radius:5px;overflow:hidden;background:var(--line)"><i style="width:'+pc0+'%"></i></div><b>'+done+'/'+tot+'</b></div>':'')+'<div class="prg">'+cards+'</div>';
+    return out+(name&&tot?'<div class="prbar"><b>Tes pronos de poules</b><div style="flex:1;height:10px;border-radius:5px;overflow:hidden;background:var(--line)"><i style="width:'+pc0+'%"></i></div><b>'+done+'/'+tot+'</b></div>':'')+pgChips((R.pool||[]).length)+'<div class="prg">'+cards+'</div>';
   }
   var isKo=sub==='ko',ms=[];
   if(isKo)R.order.forEach(function(id){var m=byId[id];if(m&&m.kind==='ko')ms.push(m)});
@@ -1938,7 +1942,7 @@ function adjustTeams(n){
 /* ---------- événements ---------- */
 document.addEventListener('click',function(e){
   if(role!=='edit'&&e.target.closest('label,input[type=checkbox]')){e.preventDefault()}
-  if(role!=='edit'){var tt=e.target.closest('[data-tab],[data-act]');if(!tt||!(tt.dataset.tab||['home','present-poules','t-open','home-tab','ko-filter','pr-pick','pr-win','pr-pseudo','pr-sub','pr-del'].indexOf(tt.dataset.act)>=0))return}
+  if(role!=='edit'){var tt=e.target.closest('[data-tab],[data-act]');if(!tt||!(tt.dataset.tab||['home','present-poules','pg-sel','t-open','home-tab','ko-filter','pr-pick','pr-win','pr-pseudo','pr-sub','pr-del'].indexOf(tt.dataset.act)>=0))return}
   var st=e.target.closest('[data-step]');
   if(st&&!st.disabled){var sid=st.dataset.step,sd=st.dataset.side,cv0=S.scores[sid]&&S.scores[sid][sd],d=+st.dataset.d,n0=cv0===''||cv0==null?(d>0?0:1):parseInt(cv0,10);
     setScore(sid,sd,String(Math.max(0,Math.min(9,n0+d))));change();return}
@@ -1981,6 +1985,7 @@ document.addEventListener('click',function(e){
   else if(a==='ko-filter'){var kx=+t.dataset.k;koFilter=(koFilter===kx)?null:kx;render()}
   else if(a==='home')goHome();
   else if(a==='present-poules')presentPoules();
+  else if(a==='pg-sel'){PG_SEL=+t.dataset.v||0;render()}
   else if(a==='home-tab'){homeTab=homeTabUser=t.dataset.id;confirmDel=null;render()}
   else if(a==='t-open')openT(t.dataset.id);
   else if(a==='t-new')newTournament();
