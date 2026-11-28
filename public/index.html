@@ -229,8 +229,9 @@ tr.ovb td{box-shadow:inset 0 -3px 0 var(--court)}
 .bz .notice{padding:6px 12px;margin:4px 0}
 .bz .match .mh{padding:.2em .6em;font-size:.9em}
 .scg{display:contents}
-.bz .match .mt{flex-wrap:wrap}
-.bz .scg{display:flex;align-items:center;gap:.35em;flex:0 0 100%;justify-content:flex-end}
+.bz .match .mt{padding-left:.4em;padding-right:.3em;gap:.25em}
+.bz .match .seed{min-width:0;padding:0 .35em;font-size:.8em}
+.bz .scg{display:flex;flex-direction:column-reverse;align-items:center;justify-content:center;gap:.15em;flex:none}
 .bz .match .mt .nm{white-space:nowrap;overflow:hidden;overflow-wrap:normal;font-size:var(--bfit,1em)!important}
 .bz .match .mt{padding:.3em .55em;gap:.35em;font-size:1em;line-height:1.2}
 .bz.clsonly{font-size:clamp(14px,1.35vw,24px)}
@@ -1766,7 +1767,7 @@ function fitBracket(){
   var base=parseFloat(getComputedStyle(z).fontSize)||14,px=Math.min(base*1.05,22);
   z.style.setProperty('--bfit',px+'px');
   function ok(){for(var i=0;i<els.length;i++)if(els[i].scrollWidth>els[i].clientWidth+0.5)return false;return true}
-  while(!ok()&&px>8){px-=.5;z.style.setProperty('--bfit',px+'px')}
+  while(!ok()&&px>8){px-=.25;z.style.setProperty('--bfit',px+'px')}
 }
 function fitPoules(){
   var g=document.querySelector('.pgrid');if(!g)return;
