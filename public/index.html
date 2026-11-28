@@ -1573,10 +1573,15 @@ function prFake(){
   prLocSet(cur,db);PR.dirty=true;prLoad();
 }
 function prOn(){return !!(cur&&(window.padelApi||role==='edit'))}
-function prDev(){try{var d=localStorage.getItem('padel-dev');if(!d){d='';for(var i=0;i<24;i++)d+='abcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random()*36));localStorage.setItem('padel-dev',d)}return d}catch(e){return PR._d||(PR._d=Math.random().toString(36).slice(2,14).padEnd(10,'x'))}}
-function prName(){var n='';try{n=localStorage.getItem('padel-pseudo')||''}catch(e){n=PR._n||''}
+/* pseudo et identifiant d'appareil : mémorisés dans le navigateur (localStorage) ET dans un cookie d'un an partagé entre tournois-badpad.fr et www.tournois-badpad.fr */
+function ckGet(k){try{var m=document.cookie.match(new RegExp('(?:^|; )'+k+'=([^;]*)'));return m?decodeURIComponent(m[1]):''}catch(e){return ''}}
+function ckSet(k,v){try{var dom=/(^|\.)tournois-badpad\.fr$/i.test(location.hostname)?'; domain=.tournois-badpad.fr':'';document.cookie=k+'='+encodeURIComponent(v)+'; max-age=31536000; path=/; SameSite=Lax'+dom+(location.protocol==='https:'?'; Secure':'')}catch(e){}}
+function memGet(k){var v='';try{v=localStorage.getItem(k)||''}catch(e){}if(!v)v=ckGet(k);else if(!ckGet(k))ckSet(k,v);if(v){try{localStorage.setItem(k,v)}catch(e){}}return v}
+function memSet(k,v){try{localStorage.setItem(k,v)}catch(e){}ckSet(k,v)}
+function prDev(){var d=memGet('padel-dev');if(!d){d='';for(var i=0;i<24;i++)d+='abcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random()*36));memSet('padel-dev',d)}return d}
+function prName(){var n=memGet('padel-pseudo')||PR._n||'';
   if(/^Invité \d+$/.test(n))n='';return n}
-function prSetName(n){PR._n=n;try{localStorage.setItem('padel-pseudo',n)}catch(e){}}
+function prSetName(n){PR._n=n;memSet('padel-pseudo',n)}
 function prLoad(){
   if(!prOn())return;
   var id=cur;
