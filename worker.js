@@ -113,9 +113,11 @@ async function lockedIds(store, tid) {
     const row = await store.get('pub/' + tid);
     if (row && row.json) {
       const st = JSON.parse(row.json);
-      Object.keys(st.starts || {}).forEach(id => { if (st.starts[id]) locked.add(id); });
-      Object.keys(st.scores || {}).forEach(id => { const v = st.scores[id]; if (v && (v.a !== '' && v.a != null || v.b !== '' && v.b != null)) locked.add(id); });
-      /* vainqueur du tournoi / de poule : fermés dès que le premier match est lancé */
+      /* les pronos restent ouverts pendant les 10 premières minutes d'un match, puis se ferment */
+      const WIN = 10 * 60 * 1000, now = Date.now();
+      Object.keys(st.starts || {}).forEach(id => { const t = +st.starts[id]; if (t && now - t > WIN) locked.add(id); });
+      Object.keys(st.scores || {}).forEach(id => { const v = st.scores[id], t = +(st.starts || {})[id]; if (v && (v.a !== '' && v.a != null || v.b !== '' && v.b != null) && !(t && now - t <= WIN)) locked.add(id); });
+      /* vainqueur du tournoi / de poule : fermés quand le premier match est verrouillé */
       if (locked.size) { locked.add('W'); for (let g = 1; g <= 40; g++) locked.add('G' + g); }
     }
   } catch (e) { /* pas de verrou si le tournoi n'est pas publié */ }
