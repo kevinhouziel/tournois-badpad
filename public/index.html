@@ -954,7 +954,16 @@ function compute(){
     for(var it=0;it<600&&cc>0;it++){var x=Math.floor(rg()*n),y=Math.floor(rg()*n);if(x===y)continue;var tt=ord[x];ord[x]=ord[y];ord[y]=tt;var nc=cost();if(nc<=cc)cc=nc;else{tt=ord[x];ord[x]=ord[y];ord[y]=tt}}
     return ord;
   }
-  var qord=(SM&&R.E&&Q===R.E-Sn)?smOrder(QLd,Sn,R.E):(QL.length>=2&&!(QL.length&(QL.length-1)))?drawOrder(QLd,S.bracketSeed||1):bracketOrder(QL,preset);
+  /* 4 poules, 2 qualifiés par poule : 2es placés d'abord (bas des 1/4 n°1-2, haut des 1/4 n°3-4), puis les 1ers ; 1er et 2e d'une même poule jamais dans la même moitié */
+  function ord8(){
+    var rg=rngMaker((S.bracketSeed||1)*7919+13),sh=function(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(rg()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a};
+    var sec=sh([4,5,6,7]),top2=sec.slice(0,2),bot2=sec.slice(2),o=new Array(8);
+    o[1]=top2[0];o[3]=top2[1];o[4]=bot2[0];o[6]=bot2[1];
+    var f1=sh(top2.map(function(x){return x-4})),f2=sh(bot2.map(function(x){return x-4}));
+    o[5]=f1[0];o[7]=f1[1];o[0]=f2[0];o[2]=f2[1];
+    return o;
+  }
+  var qord=(!SM&&G===4&&k===2&&r===0&&QL.length===8)?ord8():(SM&&R.E&&Q===R.E-Sn)?smOrder(QLd,Sn,R.E):(QL.length>=2&&!(QL.length&(QL.length-1)))?drawOrder(QLd,S.bracketSeed||1):bracketOrder(QL,preset);
 
   /* place certaine avant la fin de la poule : aucune issue possible des matchs restants ne peut la changer */
   function certainRows(P){
