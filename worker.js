@@ -232,8 +232,15 @@ async function handle(req, store, pw, env) {
       const totalHits = (await one('SELECT COALESCE(SUM(n),0) c FROM hits')).c || 0;
       const totalUnique = (await one('SELECT COUNT(DISTINCT sid) c FROM visitors')).c || 0;
       const peak = (await one('SELECT COUNT(*) c FROM presence WHERE ts > ?', now - 3600000)).c || 0;
+      let players = 0, tourn = 0;
+      try {
+        const vs = await store.listJSON('votes/');
+        const names = new Set(), tids = new Set();
+        for (const v of vs) { if (v && v.h) { names.add(v.h); } }
+        players = names.size; tourn = tids.size;
+      } catch (e) {}
       if (Math.random() < 0.05) await env.DB.prepare('DELETE FROM presence WHERE ts < ?').bind(now - 86400000).run();
-      return json({ online, lastHour: peak, today: { visits: todayHits, unique: todayUnique }, total: { visits: totalHits, unique: totalUnique } });
+      return json({ online, lastHour: peak, today: { visits: todayHits, unique: todayUnique }, total: { visits: totalHits, unique: totalUnique }, players });
     }
     if (req.method === 'GET' && parts[0] === 'me') {
       const a = await auth(req, store, pw);

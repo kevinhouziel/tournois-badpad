@@ -111,12 +111,12 @@
     if(token()){
       var vb=document.createElement('button');vb.className='adm-l';vb.id='adm-vis';vb.textContent='👁 …';vb.title='Spectateurs en ligne (cliquer pour le détail)';bar.insertBefore(vb,b);
       var lastStats=null;
-      function pollStats(){api('stats').then(function(r){lastStats=r;vb.textContent='👁 '+r.online+' en ligne · '+r.today.visits+' visite'+(r.today.visits>1?'s':'')+" aujourd'hui"},function(){})}
+      function pollStats(){api('stats').then(function(r){lastStats=r;vb.textContent='👁 '+r.online+' en ligne · '+r.today.visits+' visite'+(r.today.visits>1?'s':'')+" aujourd'hui · "+(r.players||0)+' pronostiqueur'+((r.players||0)>1?'s':'')},function(){})}
       pollStats();setInterval(function(){if(document.visibilityState==='visible')pollStats()},15000);
       vb.onclick=function(){
         var r=lastStats;if(!r)return;
         var bg=document.createElement('div');bg.id='adm-bg';
-        bg.innerHTML='<div id="adm-box"><b style="font-size:16px">Fréquentation du site spectateur</b><div>👁 <b>'+r.online+'</b> en ligne en ce moment<br><span style="color:#777">'+r.lastHour+' appareil(s) actif(s) sur la dernière heure</span></div><div>Aujourd\'hui : <b>'+r.today.visits+'</b> visite(s), <b>'+r.today.unique+'</b> visiteur(s) unique(s)</div><div>Depuis le début : <b>'+r.total.visits+'</b> visite(s), <b>'+r.total.unique+'</b> visiteur(s) unique(s)</div><button class="adm-l" id="adm-x">Fermer</button></div>';
+        bg.innerHTML='<div id="adm-box"><b style="font-size:16px">Fréquentation du site spectateur</b><div>👁 <b>'+r.online+'</b> en ligne en ce moment<br><span style="color:#777">'+r.lastHour+' appareil(s) actif(s) sur la dernière heure</span></div><div>🎯 <b>'+(r.players||0)+'</b> joueur(s) ont fait des pronos (tous tournois)</div><div>Aujourd\'hui : <b>'+r.today.visits+'</b> visite(s), <b>'+r.today.unique+'</b> visiteur(s) unique(s)</div><div>Depuis le début : <b>'+r.total.visits+'</b> visite(s), <b>'+r.total.unique+'</b> visiteur(s) unique(s)</div><button class="adm-l" id="adm-x">Fermer</button></div>';
         document.body.appendChild(bg);bg.onclick=function(e){if(e.target===bg||e.target.id==='adm-x')bg.remove()};
       };
     }
